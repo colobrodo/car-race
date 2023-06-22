@@ -1,0 +1,35 @@
+# Makefile for RTGP lab lecture exercises WITH PHYSICS LIBRARY - Win environment
+# author: Davide Gadia
+# Real-Time Graphics Programming - a.a. 2022/2023
+# Master degree in Computer Science
+# Universita' degli Studi di Milano
+
+# name of the file
+FILENAME = particle_playground
+
+# Visual Studio compiler
+CC = cl.exe
+
+# Include path
+IDIR = ../include
+
+# compiler flags:
+CCFLAGS  = /Od /Zi /EHsc /MT
+
+# linker flags:
+LFLAGS = /LIBPATH:../libs/win glfw3.lib assimp-vc143-mt.lib zlib.lib minizip.lib kubazip.lib poly2tri.lib draco.lib pugixml.lib Bullet3Common.lib BulletCollision.lib BulletDynamics.lib LinearMath.lib gdi32.lib user32.lib Shell32.lib Advapi32.lib
+
+IMGUI_FILES = ../include/imgui/imgui.cpp ../include/imgui/imgui_draw.cpp ../include/imgui/imgui_widgets.cpp ../include/imgui/imgui_tables.cpp ../include/imgui/imgui_impl_glfw.cpp ../include/imgui/imgui_impl_opengl3.cpp
+
+SOURCES = ../include/glad/glad.c $(IMGUI_FILES) $(FILENAME).cpp
+
+TARGET = $(FILENAME).exe
+
+.PHONY : all
+all:
+	$(CC) $(CCFLAGS) /I$(IDIR) $(SOURCES) /Fe:$(TARGET) /link $(LFLAGS)
+
+.PHONY : clean
+clean :
+	del $(TARGET)
+	del *.obj *.lib *.exp *.ilk *.pdb
