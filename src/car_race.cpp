@@ -61,6 +61,7 @@ positive Z axis points "outside" the screen
 #include <utils/physics.h>
 #include <utils/vehicle.h>
 #include <utils/particle.h>
+#include <utils/Texture.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -71,10 +72,6 @@ positive Z axis points "outside" the screen
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
-// we include the library for images loading
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image/stb_image.h>
 
 // Dimensioni della finestra dell'applicazione
 GLuint screenWidth = 1400, screenHeight = 1100;
@@ -135,6 +132,7 @@ unsigned int quadVAO, quadVBO;
 Model *cubeModel;
 Model *sphereModel;
 Model *cylinderModel;
+Model *carModel;
 
 
 // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates
@@ -158,42 +156,8 @@ glm::vec3 toGLM(const btVector3 &v) {
     return glm::vec3(v.getX(), v.getY(), v.getZ());
 }
 
-// we load the image from disk and we create an OpenGL texture
-GLint LoadTexture(const char* path)
-{
-    GLuint textureImage;
-    int w, h, channels;
-    unsigned char* image;
-    image = stbi_load(path, &w, &h, &channels, STBI_rgb);
 
-    if (image == nullptr)
-        std::cout << "Failed to load texture!" << std::endl;
-
-    glGenTextures(1, &textureImage);
-    glBindTexture(GL_TEXTURE_2D, textureImage);
-    // 3 channels = RGB ; 4 channel = RGBA
-    if (channels==3)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-    else if (channels==4)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    // we set how to consider UVs outside [0,1] range
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // we set the filtering for minification and magnification
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-
-    // we free the memory once we have created an OpenGL texture
-    stbi_image_free(image);
-
-    // we set the binding to 0 once we have finished
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    return textureImage;
-}
-
-void updateCameraPosition(Vehicle vehicle, const glm::vec3 offset, Camera &camera) {
+void updateCameraPosition(Vehicle vehicle, Camera &camera, const glm::vec3 offset, float deltaTime) {
     // camera will always follow the car staying behind of it
     auto bulletVehicle = vehicle.GetBulletVehicle();
     btTransform chassisTransform = bulletVehicle.getChassisWorldTransform();
@@ -205,9 +169,11 @@ void updateCameraPosition(Vehicle vehicle, const glm::vec3 offset, Camera &camer
         targetPosition *= btVector3(1.f, -1.f, 1.f);
     }
     glm::vec3 diffVector = toGLM(targetPosition) - camera.Position;
-    // TODO: move into a function
+    // the camera can move up to this force per second, a too fast camera is shaky
+    // specialy when the vehicle is rolling or go upside down. 
+    // in this way we are interpolating the position
+    float maxMagnitude = 90.f * deltaTime;
     // clamp magnitude of the camera vector velocity
-    const float maxMagnitude = .3f;
     float len = glm::length(diffVector);
     if(len > 0) {
         auto magnitude = len > maxMagnitude ? maxMagnitude : len;
@@ -369,6 +335,7 @@ int main()
     // we load the model(s) (code of Model class is in include/utils/model.h)
     cubeModel = new Model("../models/cube.obj");
     sphereModel = new Model("../models/sphere.obj");
+    carModel = new Model("../models/car.obj");
     cylinderModel = new Model("../models/cylinder.obj");
 
     // screen quad VAO
@@ -478,11 +445,10 @@ int main()
     glVertexAttribDivisor(6, 1);
 
     glBindVertexArray(0);
- 
 
 
     /// create vehicle
-    glm::vec3 chassisBox(1.f, 0.5f, 2.f);
+    glm::vec3 chassisBox(1.f, .5f, 2.f);
     // default wheel infos
     WheelInfo wheelInfo;
     Vehicle vehicle(chassisBox, wheelInfo);
@@ -530,8 +496,8 @@ int main()
     glm::mat4 planeModelMatrix = glm::mat4(1.0f);
     glm::mat3 planeNormalMatrix = glm::mat3(1.0f);
     // texture id for plane
-    GLint planeTexture = LoadTexture("../textures/DirtFloor.jpg");
-    GLint planeNormalMap = LoadTexture("../textures/DirtFloor_NormalMap.png");
+    Texture planeTexture("../textures/DirtFloor.jpg");
+    Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
 
     // constant distance from the camera and the vehicle
     glm::vec3 cameraOffset(20.f, 15.f, -15.f);
@@ -564,6 +530,7 @@ int main()
         GLfloat currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+        float stimateFPS = 1 / deltaTime;
 
         // Check is an I/O event is happening
         glfwPollEvents();
@@ -591,6 +558,7 @@ int main()
             // Actual ImgGui Dialogs drawing
             // Dialog for Vehicle configuration
             ImGui::Begin("Vehicle");
+            ImGui::Text("FPS %f", stimateFPS);
             ImGui::Text("Speed: %f Km/h", vehicle.GetSpeed());
 
             ImGui::SeparatorText("Wheel");
@@ -616,7 +584,7 @@ int main()
             ImGui::Render();
         }
 
-        updateCameraPosition(vehicle, cameraOffset, camera);
+        updateCameraPosition(vehicle, camera, cameraOffset, deltaTime);
 
         // View matrix (=camera): position, view direction, camera "up" vector
         // in this example, it has been defined as a global variable (we need it in the keyboard callback function)
@@ -708,17 +676,13 @@ int main()
 
         // set texture for the plane
         auto textureLocation = glGetUniformLocation(object_shader.Program, "tex");
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, planeTexture);
-        glUniform1i(textureLocation, 1);
+        planeTexture.Activate(textureLocation);
         // set the normal map
         subroutines[1] = NormalMapSubroutine;
         glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);
 
         auto normalMapLocation = glGetUniformLocation(object_shader.Program, "normalMap");
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, planeNormalMap);
-        glUniform1i(normalMapLocation, 2);
+        planeNormalMap.Activate(normalMapLocation);
 
         // we render the plane
         cubeModel->Draw();
@@ -771,7 +735,8 @@ int main()
             glUniformMatrix4fv(glGetUniformLocation(object_shader.Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(objModelMatrix));
             glUniformMatrix3fv(glGetUniformLocation(object_shader.Program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(objNormalMatrix));
 
-            cubeModel->Draw();
+            carModel->Draw();
+            // cubeModel->Draw();
             // we "reset" the matrix
             objModelMatrix = glm::mat4(1.0f);
 
