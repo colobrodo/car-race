@@ -530,7 +530,6 @@ int main()
         GLfloat currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
-        float stimateFPS = 1 / deltaTime;
 
         // Check is an I/O event is happening
         glfwPollEvents();
@@ -558,7 +557,6 @@ int main()
             // Actual ImgGui Dialogs drawing
             // Dialog for Vehicle configuration
             ImGui::Begin("Vehicle");
-            ImGui::Text("FPS %f", stimateFPS);
             ImGui::Text("Speed: %f Km/h", vehicle.GetSpeed());
 
             ImGui::SeparatorText("Wheel");
@@ -573,6 +571,16 @@ int main()
             ImGui::Separator();
             ImGui::SliderFloat("Engine Force", &vehicle.maxEngineForce, 500.0f, 2000.0f);
             ImGui::SliderFloat("Roll Influence", &vehicle.WheelInfo.rollInfluence, 0.0f, 2.0f);
+            ImGui::End();
+
+            /// Options for camera
+            ImGui::Begin("Illuminance Model");
+            ImGui::SliderFloat3("Position", glm::value_ptr(lightPos0), -50.f, 50.f);
+            // do not allow the light to go under the plane
+            if(lightPos0.y < 0.f) lightPos0.y = -lightPos0.y;
+            ImGui::SliderFloat("Diffusive component weight", &Kd, 0.f, 10.f);
+            ImGui::SliderFloat("Roughness", &alpha, 0.01f, 1.f);
+            ImGui::SliderFloat("Fresnel reflectance", &F0, 0.01f, 1.f);
             ImGui::End();
 
             /// Options for camera
