@@ -1,6 +1,9 @@
 # editor config folder
 .vscode
 
+# imgui config file to keep information about your last windows location and size
+imgui.ini
+
 # Prerequisites
 *.d
 
