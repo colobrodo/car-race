@@ -18,6 +18,11 @@ enum NormalCalculation {
     FROM_MATRIX,
 };
 
+enum TextureCoordinateCalculation {
+    UV,
+    PARALLAX_MAP,
+};
+
 struct IlluminationModelParameter {
     // point light position
     glm::vec3 lightPosition;
@@ -37,8 +42,9 @@ public:
         // fragment shader subroutines
         // set the illumination model to GGX, look a the comment about subroutines
         GLuint illuminationModelIndex = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, "GGX");
-        subroutines[2] = illuminationModelIndex;
+        subroutines[3] = illuminationModelIndex;
         SetPattern(COLOR);
+        SetTexCoordinateCalculation(UV);
         SetNormalCalculation(FROM_MATRIX);
     }
 
@@ -103,24 +109,18 @@ public:
         auto normalMapLocation = glGetUniformLocation(shader->Program, "normalMap1");
         texture.Activate(normalMapLocation);
     }
+    
+    // TODO: pass scale and maybe bias
+    void SetParallaxMap(Texture &texture, float scale=1.f) {
+        SetTexCoordinateCalculation(PARALLAX_MAP);
+        auto parallaxMapLocation = glGetUniformLocation(shader->Program, "parallaxMap");
+        auto parallaxMapScaleLocation = glGetUniformLocation(shader->Program, "parallaxMappingScale");
+        glUniform1f(parallaxMapScaleLocation, scale);
+        texture.Activate(parallaxMapLocation);
+    }
 
     void Delete() {
         shader->Delete();
-    }
-
-    void SetNormalCalculation(NormalCalculation normalCalculation) {
-        char *subroutineName;
-        switch(normalCalculation) {
-            case FROM_MATRIX: {
-                subroutineName = "NormalMatrix";
-                break;
-            }
-            case NORMAL_MAP: {
-                subroutineName = "NormalMap";
-                break;
-            }
-        }
-        setNormalSubroutine(subroutineName);
     }
 
     void SetPattern(PatternType pattern) {
@@ -142,6 +142,36 @@ public:
         setPatternSubroutine(subroutineName);
     }
 
+    void SetNormalCalculation(NormalCalculation normalCalculation) {
+        char *subroutineName;
+        switch(normalCalculation) {
+            case FROM_MATRIX: {
+                subroutineName = "NormalMatrix";
+                break;
+            }
+            case NORMAL_MAP: {
+                subroutineName = "NormalMap";
+                break;
+            }
+        }
+        setNormalSubroutine(subroutineName);
+    }
+
+    void SetTexCoordinateCalculation(TextureCoordinateCalculation calculation) {
+        char *subroutineName;
+        switch(calculation) {
+            case UV: {
+                subroutineName = "InterpolatedUV";
+                break;
+            }
+            case PARALLAX_MAP: {
+                subroutineName = "ParallaxMapping";
+                break;
+            }
+        }
+        setTexCoordinateSubroutine(subroutineName);
+    }
+
     IlluminationModelParameter illumination;
     // TODO: set as private
     Shader *shader;
@@ -150,14 +180,22 @@ private:
         GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);
         subroutines[0] = patternSubroutine;
         // we activate the subroutine using the index (this is where shaders swapping happens)
-        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);
+        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 4, subroutines);
     }
     
     void setNormalSubroutine(char *subroutineName) {
         GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);
         subroutines[1] = patternSubroutine;
         // we activate the subroutine using the index (this is where shaders swapping happens)
-        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);    }
+        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 4, subroutines);
+    }
+    
+    void setTexCoordinateSubroutine(char *subroutineName) {
+        GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);
+        subroutines[2] = patternSubroutine;
+        // we activate the subroutine using the index (this is where shaders swapping happens)
+        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 4, subroutines);
+    }
 
     void UpdateIlluminationModel() {
         GLint pointLightLocation = glGetUniformLocation(shader->Program, "pointLightPosition");
@@ -177,5 +215,5 @@ private:
     //   calculate the normal from the view/model matrix or use a normal map
     //   (automaticly setted when setted a normal map)
     // the last is illumination model, always setted to GGX
-    GLuint subroutines[3] = {0, 0, 0};
+    GLuint subroutines[4] = {0, 0, 0, 0};
 };

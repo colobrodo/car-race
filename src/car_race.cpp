@@ -147,7 +147,6 @@ glm::vec3 toGLM(const btVector3 &v) {
     return glm::vec3(v.getX(), v.getY(), v.getZ());
 }
 
-
 void updateCameraPosition(Vehicle vehicle, Camera &camera, const glm::vec3 offset, float deltaTime) {
     // camera will always follow the car staying behind of it
     auto bulletVehicle = vehicle.GetBulletVehicle();
@@ -330,7 +329,7 @@ int main()
     // we load the model(s) (code of Model class is in include/utils/model.h)
     cubeModel = new Model("../models/cube.obj");
     sphereModel = new Model("../models/sphere.obj");
-    carModel = new Model("../models/car.obj");
+    carModel = new Model("../models/mclaren.obj");
     cylinderModel = new Model("../models/cylinder.obj");
 
     // screen quad VAO
@@ -489,10 +488,15 @@ int main()
     glm::mat4 objModelMatrix = glm::mat4(1.0f);
     glm::mat4 planeModelMatrix = glm::mat4(1.0f);
     // textures for plane
-    Texture planeTexture("../textures/DirtFloor.jpg");
-    Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
+    // Texture planeTexture("../textures/DirtFloor.jpg");
+    // Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
+    // Texture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
+    Texture planeTexture("../textures/Stone.jpg");
+    Texture planeNormalMap("../textures/Stone_NormalMap.jpg");
+    Texture planeDisplacementMap("../textures/Stone_DispMap.jpg");
     Texture grassTexture("../textures/Stone.jpg");
     Texture grassNormalMap("../textures/Stone_NormalMap.jpg");
+    Texture grassDisplacementMap("../textures/Stone_DispMap.jpg");
     
     // Texture grassTexture("../textures/Grass.jpg");
     // Texture grassNormalMap("../textures/Grass_NormalMap.jpg");
@@ -656,6 +660,8 @@ int main()
         renderer.SetTexture(planeTexture);
         // set the normal map
         renderer.SetNormalMap(planeNormalMap);
+        // set the displacement texture that is used as parallax map
+        renderer.SetParallaxMap(planeDisplacementMap, .1f);
 
         // renderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
 
@@ -663,6 +669,8 @@ int main()
         cubeModel->Draw();
         planeModelMatrix = glm::mat4(1.0f);
 
+        // do not use parallax map anymore but restore uv coordinate interpolation
+        renderer.SetTexCoordinateCalculation(UV);
         // reset normals calculation in vertex shader with normal matrix not anymore with normal map
         renderer.SetNormalCalculation(FROM_MATRIX);
         /// DYNAMIC OBJECTS (FALLING CUBES + BULLETS)

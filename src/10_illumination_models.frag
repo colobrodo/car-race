@@ -46,9 +46,14 @@ uniform float Ka;
 uniform float Kd;
 uniform float Ks;
 
+// height scale factor for parallax mapping
+uniform float parallaxMappingScale;
+
 // optional texture
 uniform sampler2D tex1;
 uniform sampler2D normalMap1;
+uniform sampler2D parallaxMap;
+// second texture
 uniform sampler2D tex2;
 uniform sampler2D normalMap2;
 // normals transformation matrix (= transpose of the inverse of the model-view matrix)
@@ -61,7 +66,7 @@ uniform float shininess;
 uniform float alpha; // rugosity - 0 : smooth, 1: rough
 uniform float F0; // fresnel reflectance at normal incidence
 
-float repeat = 20.0;
+float repeat = 10.0;
 
 
 ////////////////////////////////////////////////////////////////////
@@ -82,6 +87,37 @@ subroutine vec3 get_normal();
 
 subroutine uniform get_normal Get_Normal;
 
+// subroutine to calculate the tex coordinates, can be the interpolated UV or displaced by a parallax map
+subroutine vec2 get_uv();
+
+subroutine uniform get_uv Get_UV;
+
+// TODO: trasform this into a subroutine to allow parallax mapping
+subroutine(get_uv)
+vec2 InterpolatedUV() {
+    vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
+    return repeated_UV;
+}
+
+// tangent bitangent matrix to convert a world coordinate to tangent space
+mat3 getTBN() {
+    vec3 T = normalize(vec3(normalMatrix * vTangent));
+    vec3 B = normalize(vec3(normalMatrix * vBitangent));
+    vec3 N = normalize(vec3(normalMatrix * vNormal));
+    return mat3(T, B, N);
+}
+
+subroutine(get_uv)
+vec2 ParallaxMapping() {
+    vec2 uv = InterpolatedUV();
+    float height = texture(parallaxMap, uv).r;
+    // we are inverting the TBN matrix to go from tangent space to uv texture space
+    // the inverse of an orthogonal matrix is his transpose
+    mat3 TBN_inv = transpose(getTBN());
+    vec3 V = normalize(TBN_inv * lightDir);
+    vec2 p = V.xy / V.z * (height * parallaxMappingScale);
+    return uv - p;
+}
 
 ////////////////////////////////////////////////////////////////////
 
@@ -202,7 +238,7 @@ float aastep(float threshold, float value) {
 // for multiple texture this is the function to get the interpolation value
 // now is fixed to a noise pattern and cannot be changed using a subroutine
 float getInterpolation() {
-    return 1 - snoise(vec3(interp_UV * 20, 0));
+    return 1 - snoise(vec3(Get_UV() * 20, 0));
 }
 
 //////////////////////////////////////////
@@ -388,13 +424,12 @@ vec3 NormalMatrix() {
 }
 
 vec3 sampleNormalMap(sampler2D normalMap) {
-    vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
-    vec3 color = texture(normalMap, repeated_UV).rgb;
+    vec2 uv = Get_UV();
+    vec3 color = texture(normalMap, uv).rgb;
+    // sadly our textures are inverted in the y channel 
+    color.g = 1 - color.g;
     vec3 sampledNormal = normalize(2 * color - vec3(1, 1, 1));
-    vec3 T = normalize(vec3(normalMatrix * vTangent));
-    vec3 B = normalize(vec3(normalMatrix * vBitangent));
-    vec3 N = normalize(vec3(normalMatrix * vNormal));
-    mat3 TBN = mat3(T, B, N);
+    mat3 TBN = getTBN();
     return normalize(TBN * sampledNormal);
 
 }
@@ -419,15 +454,14 @@ vec3 SingleColor() {
 
 subroutine(color_pattern)
 vec3 Texture() {
-    vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
-    return texture(tex1, repeated_UV).rgb;
+    return texture(tex1, Get_UV()).rgb;
 }
 
 subroutine(color_pattern)
 vec3 InterpolatedTextures() {
-    vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
-    vec3 firstColor = texture(tex1, repeated_UV).rgb;
-    vec3 secondColor = texture(tex2, repeated_UV).rgb;
+    vec2 uv = Get_UV();
+    vec3 firstColor = texture(tex1, uv).rgb;
+    vec3 secondColor = texture(tex2, uv).rgb;
     float k = getInterpolation();
     return k * firstColor + (1 - k) * secondColor;
 }
@@ -436,9 +470,8 @@ subroutine(color_pattern)
 vec3 Grid() {
     // s coordinates -> from 0.0 to 1.0
     // multiplied for "repeat" -> from 0.0 to "repeat"
-    float repeat = 50.0;
     // fractional part gives the repetition of a gradient from 0.0 to 1.0 for "repeat" times
-    vec2 k = fract(interp_UV * repeat);
+    vec2 k = fract(Get_UV() * repeat);
     // step function forces half pattern to white and the other half to black
     // we use this value to mix the colors, to obtain a colored stripes pattern
     // A LOT OF ALIASING!
@@ -459,8 +492,10 @@ void main(void)
   	
     vec3 color = Illumination_Model(diffuseColor);
     // DEBUG: normals
-    // color = Get_Normal();
     // color = color * getInterpolation();
+    // color = Get_Normal();
+    // vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
+    // color = texture(parallaxMap, repeated_UV).r * vec3(1,1, 1);
 
     colorFrag = vec4(color, 1.0);
 }
