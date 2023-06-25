@@ -4,7 +4,6 @@
 #include "../glm/gtc/matrix_inverse.hpp"
 #include "../glm/gtc/type_ptr.hpp"
 
-
 #include "texture.h";
 #include "shader.h";
 
@@ -53,6 +52,22 @@ public:
         UpdateIlluminationModel();
     }
 
+    void SetTerrainTexture(Texture &dirtTexture, Texture &dirtNormalMap,
+                           Texture &grassTexture, Texture &grassNormalMap) {
+        // two texture with normal map interpolated in a noise pattern
+        // not accessible from the extern
+        setPatternSubroutine("InterpolatedTextures");
+        auto textureLocation = glGetUniformLocation(shader->Program, "tex1");
+        dirtTexture.Activate(textureLocation);
+        textureLocation = glGetUniformLocation(shader->Program, "tex2");
+        grassTexture.Activate(textureLocation);
+        setNormalSubroutine("InterpolatedNormalMaps");
+        auto normalMapLocation = glGetUniformLocation(shader->Program, "normalMap1");
+        dirtNormalMap.Activate(normalMapLocation);
+        normalMapLocation = glGetUniformLocation(shader->Program, "normalMap2");
+        grassNormalMap.Activate(normalMapLocation);
+    }
+
     void SetModelTrasformation(glm::mat4 modelMatrix) {
         glm::mat3 normalMatrix = glm::inverseTranspose(glm::mat3(view * modelMatrix));
         glUniformMatrix4fv(glGetUniformLocation(shader->Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
@@ -79,13 +94,13 @@ public:
 
     void SetTexture(Texture &texture) {
         SetPattern(TEXTURE);
-        auto textureLocation = glGetUniformLocation(shader->Program, "tex");
+        auto textureLocation = glGetUniformLocation(shader->Program, "tex1");
         texture.Activate(textureLocation);
     }
 
     void SetNormalMap(Texture &texture) {
         SetNormalCalculation(NORMAL_MAP);
-        auto normalMapLocation = glGetUniformLocation(shader->Program, "normalMap");
+        auto normalMapLocation = glGetUniformLocation(shader->Program, "normalMap1");
         texture.Activate(normalMapLocation);
     }
 
@@ -105,10 +120,7 @@ public:
                 break;
             }
         }
-        GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);
-        subroutines[1] = patternSubroutine;
-        // we activate the subroutine using the index (this is where shaders swapping happens)
-        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);
+        setNormalSubroutine(subroutineName);
     }
 
     void SetPattern(PatternType pattern) {
@@ -127,17 +139,26 @@ public:
                 break;
             }
         }
-        GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);
-        subroutines[0] = patternSubroutine;
-        // we activate the subroutine using the index (this is where shaders swapping happens)
-        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);
-
+        setPatternSubroutine(subroutineName);
     }
 
     IlluminationModelParameter illumination;
     // TODO: set as private
     Shader *shader;
 private:
+    void setPatternSubroutine(char *subroutineName) {
+        GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);
+        subroutines[0] = patternSubroutine;
+        // we activate the subroutine using the index (this is where shaders swapping happens)
+        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);
+    }
+    
+    void setNormalSubroutine(char *subroutineName) {
+        GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);
+        subroutines[1] = patternSubroutine;
+        // we activate the subroutine using the index (this is where shaders swapping happens)
+        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);    }
+
     void UpdateIlluminationModel() {
         GLint pointLightLocation = glGetUniformLocation(shader->Program, "pointLightPosition");
         GLint kdLocation = glGetUniformLocation(shader->Program, "Kd");

@@ -47,8 +47,10 @@ uniform float Kd;
 uniform float Ks;
 
 // optional texture
-uniform sampler2D tex;
-uniform sampler2D normalMap;
+uniform sampler2D tex1;
+uniform sampler2D normalMap1;
+uniform sampler2D tex2;
+uniform sampler2D normalMap2;
 // normals transformation matrix (= transpose of the inverse of the model-view matrix)
 uniform mat3 normalMatrix;
 
@@ -59,7 +61,7 @@ uniform float shininess;
 uniform float alpha; // rugosity - 0 : smooth, 1: rough
 uniform float F0; // fresnel reflectance at normal incidence
 
-float repeat = 40.0;
+float repeat = 20.0;
 
 
 ////////////////////////////////////////////////////////////////////
@@ -197,6 +199,11 @@ float aastep(float threshold, float value) {
   return smoothstep(threshold-afwidth, threshold+afwidth, value);
 }
 
+// for multiple texture this is the function to get the interpolation value
+// now is fixed to a noise pattern and cannot be changed using a subroutine
+float getInterpolation() {
+    return 1 - snoise(vec3(interp_UV * 20, 0));
+}
 
 //////////////////////////////////////////
 // a subroutine for the Lambert model
@@ -380,8 +387,7 @@ vec3 NormalMatrix() {
     return normalize(normalMatrix * vNormal);
 }
 
-subroutine(get_normal)
-vec3 NormalMap() {
+vec3 sampleNormalMap(sampler2D normalMap) {
     vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
     vec3 color = texture(normalMap, repeated_UV).rgb;
     vec3 sampledNormal = normalize(2 * color - vec3(1, 1, 1));
@@ -390,6 +396,18 @@ vec3 NormalMap() {
     vec3 N = normalize(vec3(normalMatrix * vNormal));
     mat3 TBN = mat3(T, B, N);
     return normalize(TBN * sampledNormal);
+
+}
+
+subroutine(get_normal)
+vec3 NormalMap() {
+    return sampleNormalMap(normalMap1);
+}
+
+subroutine(get_normal)
+vec3 InterpolatedNormalMaps() {
+    float k = getInterpolation();
+    return k * sampleNormalMap(normalMap1) + (1 - k) * sampleNormalMap(normalMap2);
 }
 
 //////////////////////////////////////////
@@ -402,7 +420,16 @@ vec3 SingleColor() {
 subroutine(color_pattern)
 vec3 Texture() {
     vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
-    return texture(tex, repeated_UV).rgb;
+    return texture(tex1, repeated_UV).rgb;
+}
+
+subroutine(color_pattern)
+vec3 InterpolatedTextures() {
+    vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
+    vec3 firstColor = texture(tex1, repeated_UV).rgb;
+    vec3 secondColor = texture(tex2, repeated_UV).rgb;
+    float k = getInterpolation();
+    return k * firstColor + (1 - k) * secondColor;
 }
 
 subroutine(color_pattern)
@@ -433,7 +460,7 @@ void main(void)
     vec3 color = Illumination_Model(diffuseColor);
     // DEBUG: normals
     // color = Get_Normal();
-    color = color * (1 - snoise(vec3(interp_UV * 100, 0)));
+    // color = color * getInterpolation();
 
     colorFrag = vec4(color, 1.0);
 }

@@ -360,8 +360,8 @@ int main()
     auto emitter = new ParticleEmitter(totalParticles);
     {
         // set the random variables
-        emitter->Size0     = 0.05f;
-        emitter->Size1     = 0.1f;
+        emitter->Size0     = 0.01f;
+        emitter->Size1     = 0.05f;
         emitter->Rotation0 = 0.1f;
         emitter->Rotation1 = 5.f;
         emitter->Lifespan0 = 1.f;
@@ -487,12 +487,15 @@ int main()
 
     // Model and Normal transformation matrices for the objects in the scene: we set to identity
     glm::mat4 objModelMatrix = glm::mat4(1.0f);
-    glm::mat3 objNormalMatrix = glm::mat3(1.0f);
     glm::mat4 planeModelMatrix = glm::mat4(1.0f);
-    glm::mat3 planeNormalMatrix = glm::mat3(1.0f);
-    // texture id for plane
+    // textures for plane
     Texture planeTexture("../textures/DirtFloor.jpg");
     Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
+    Texture grassTexture("../textures/Stone.jpg");
+    Texture grassNormalMap("../textures/Stone_NormalMap.jpg");
+    
+    // Texture grassTexture("../textures/Grass.jpg");
+    // Texture grassNormalMap("../textures/Grass_NormalMap.jpg");
 
     // constant distance from the camera and the vehicle
     glm::vec3 cameraOffset(0.f, 15.f, -25.f);
@@ -564,7 +567,7 @@ int main()
             ImGui::SliderFloat("Compression", &vehicle.WheelInfo.suspensionCompression, 1.f, 10.f);
             ImGui::SliderFloat("Rest Length", &vehicle.WheelInfo.suspensionRestLength, 0.f, 2.f);
             ImGui::Separator();
-            ImGui::SliderFloat("Engine Force", &vehicle.maxEngineForce, 500.0f, 2000.0f);
+            ImGui::SliderFloat("Engine Force", &vehicle.maxEngineForce, 500.0f, 3000.0f);
             ImGui::SliderFloat("Roll Influence", &vehicle.WheelInfo.rollInfluence, 0.0f, 2.0f);
             ImGui::End();
 
@@ -581,7 +584,7 @@ int main()
 
             /// Options for camera
             ImGui::Begin("Camera");
-            ImGui::SliderFloat3("Offset", glm::value_ptr(cameraOffset), -30.f, 30.f);
+            ImGui::SliderFloat3("Offset", glm::value_ptr(cameraOffset), -40.f, 40.f);
             ImGui::End();
 
             // Render ImgGui
@@ -645,16 +648,16 @@ int main()
         // if, for some reason, the plane becomes a dynamic rigid body, the following code must be modified
         // we reset to identity at each frame
         planeModelMatrix = glm::mat4(1.0f);
-        planeNormalMatrix = glm::mat3(1.0f);
         planeModelMatrix = glm::translate(planeModelMatrix, plane_pos);
         planeModelMatrix = glm::scale(planeModelMatrix, plane_size);
         renderer.SetModelTrasformation(planeModelMatrix);
         
         // set texture for the plane
         renderer.SetTexture(planeTexture);
-        
         // set the normal map
         renderer.SetNormalMap(planeNormalMap);
+
+        // renderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
 
         // we render the plane
         cubeModel->Draw();
@@ -688,7 +691,6 @@ int main()
 
             // we reset to identity at each frame
             objModelMatrix = glm::mat4(1.0f);
-            objNormalMatrix = glm::mat3(1.0f);
 
             // we create the GLM transformation matrix
             // 1) we convert the array of floats to a GLM mat4 (using make_mat4 method)
@@ -696,9 +698,8 @@ int main()
             objModelMatrix = glm::make_mat4(matrix) * glm::scale(objModelMatrix, obj_size);
             // we create the normal matrix
             renderer.SetModelTrasformation(objModelMatrix);
-
             carModel->Draw();
-            // cubeModel->Draw();
+
             // we "reset" the matrix
             objModelMatrix = glm::mat4(1.0f);
 
@@ -716,11 +717,9 @@ int main()
                 transform.getOpenGLMatrix(matrix);
 
                 // wheel transformation: cylinder is oriented toward the y axis, while we need a cylinder z 
+                // we reset to identity at each frame
                 objModelMatrix = glm::mat4(1.0f);
                 objModelMatrix = glm::rotate(glm::scale(objModelMatrix, wheelSize), glm::radians(90.f), glm::vec3(0.f, 0.f, 1.f));
-                // we reset to identity at each frame
-                objNormalMatrix = glm::mat3(1.0f);
-
                 objModelMatrix = glm::make_mat4(matrix) * objModelMatrix;
                 // we pass the model trasformation to the renderer that creates the normal matrix for us
                 renderer.SetModelTrasformation(objModelMatrix);

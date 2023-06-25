@@ -184,7 +184,7 @@ public:
     }
 
     // TODO: for imgui tweeking
-    float maxEngineForce = 1000.f;
+    float maxEngineForce = 2000.f;
 private:
     float shootTimer = 0.f;
     const float steeringIncrement = 0.02f;
