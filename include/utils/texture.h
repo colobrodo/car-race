@@ -18,7 +18,7 @@ public:
         image = stbi_load(path, &w, &h, &channels, STBI_rgb);
 
         if (image == nullptr)
-            std::cout << "Failed to load texture!" << std::endl;
+            std::cout << "Failed to load texture " << path << "!" << std::endl;
 
         glGenTextures(1, &textureImage);
         glBindTexture(GL_TEXTURE_2D, textureImage);
