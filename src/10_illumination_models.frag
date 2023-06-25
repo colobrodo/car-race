@@ -262,7 +262,7 @@ subroutine(ill_model)
 vec3 BlinnPhong(vec3 diffuseColor) // this name is the one which is detected by the SetupShaders() function in the main application, and the one used to swap subroutines
 {
     // ambient component can be calculated at the beginning
-    vec3 color = Ka*ambientColor;
+    vec3 color = Ka * ambientColor;
 
     // normalization of the per-fragment normal
     vec3 N = normalize(Get_Normal());
@@ -277,7 +277,7 @@ vec3 BlinnPhong(vec3 diffuseColor) // this name is the one which is detected by 
     if(lambertian > 0.0)
     {
       // the view vector has been calculated in the vertex shader, already negated to have direction from the mesh to the camera
-      vec3 V = normalize( vViewPosition );
+      vec3 V = normalize(vViewPosition);
 
       // in the Blinn-Phong model we do not use the reflection vector, but the half vector
       vec3 H = normalize(L + V);
@@ -370,26 +370,26 @@ vec3 GGX(vec3 diffuseColor) // this name is the one which is detected by the Set
     // integral of: BRDF * Li * (cosine angle between N and L)
     // BRDF in our case is: the sum of Lambert and GGX
     // Li is considered as equal to 1: light is white, and we have not applied attenuation. With colored lights, and with attenuation, the code must be modified and the Li factor must be multiplied to finalColor
-    return (lambert + specular)*NdotL;
+    return (lambert + specular) * NdotL;
 }
 //////////////////////////////////////////
 
 // get the normal from the mesh
 subroutine(get_normal)
 vec3 NormalMatrix() {
-  return normalize(normalMatrix * vNormal);
+    return normalize(normalMatrix * vNormal);
 }
 
 subroutine(get_normal)
 vec3 NormalMap() {
-  vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
-  vec3 color = texture(normalMap, repeated_UV).rgb;
-  vec3 sampledNormal = normalize(2 * color - vec3(1, 1, 1));
-  vec3 T = normalize(vec3(normalMatrix * vTangent));
-  vec3 B = normalize(vec3(normalMatrix * vBitangent));
-  vec3 N = normalize(vec3(normalMatrix * vNormal));
-  mat3 TBN = mat3(T, B, N);
-  return normalize(TBN * sampledNormal);
+    vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
+    vec3 color = texture(normalMap, repeated_UV).rgb;
+    vec3 sampledNormal = normalize(2 * color - vec3(1, 1, 1));
+    vec3 T = normalize(vec3(normalMatrix * vTangent));
+    vec3 B = normalize(vec3(normalMatrix * vBitangent));
+    vec3 N = normalize(vec3(normalMatrix * vNormal));
+    mat3 TBN = mat3(T, B, N);
+    return normalize(TBN * sampledNormal);
 }
 
 //////////////////////////////////////////

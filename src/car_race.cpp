@@ -61,7 +61,8 @@ positive Z axis points "outside" the screen
 #include <utils/physics.h>
 #include <utils/vehicle.h>
 #include <utils/particle.h>
-#include <utils/Texture.h>
+#include <utils/texture.h>
+#include <utils/mesh_renderer.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -105,24 +106,14 @@ glm::mat4 view, projection;
 // we create a camera. We pass the initial position as a parameter to the constructor. In this case, we use a "floating" camera (we pass false as last parameter)
 Camera camera(glm::vec3(0.0f, 0.0f, 9.0f), GL_FALSE);
 
-/// Uniforms for the illumination model
-// point light position
-glm::vec3 lightPos0 = glm::vec3(5.0f, 20.0f, 20.0f);
-// weight for the diffusive component
-GLfloat Kd = 3.0f;
-// roughness index for GGX shader
-GLfloat alpha = 0.6f;
-// Fresnel reflectance at 0 degree (Schlik's approximation)
-GLfloat F0 = 0.9f;
-
 // color of the falling objects
-GLfloat diffuseColor[] = {1.0f,0.0f,0.0f};
-GLfloat carColor[] = {.8f, .8f, .8f};
+glm::vec3 diffuseColor{1.0f,0.0f,0.0f};
+glm::vec3 carColor{.8f, .8f, .8f};
 // color of the plane
-GLfloat planeMaterial1[] = {.6f, .6f, .7f};
-GLfloat planeMaterial2[] = {.3f, .3f, .3f};
+glm::vec3 planeMaterial1{.6f, .6f, .7f};
+glm::vec3 planeMaterial2{.3f, .3f, .3f};
 // color of the bullets
-GLfloat shootColor[] = {1.0f,1.0f,0.0f};
+glm::vec3 shootColor{1.0f,1.0f,0.0f};
 // dimension of the bullets (global because we need it also in the keyboard callback)
 glm::vec3 sphereSize = glm::vec3(0.2f, 0.2f, 0.2f);
 
@@ -185,7 +176,7 @@ void updateCameraPosition(Vehicle vehicle, Camera &camera, const glm::vec3 offse
 }
 
 // TODO: light bug (not happen if the function is "inlined")
-void drawRigidBody(btRigidBody *body) {
+void drawRigidBody(MeshRenderer &renderer, btRigidBody *body) {
     Model *objectModel;
 
     // object transformation first getted as btTransform, then stored in "OpenGL"
@@ -208,7 +199,7 @@ void drawRigidBody(btRigidBody *body) {
         auto extends = box->getHalfExtentsWithMargin();
         obj_size = toGLM(extends);
         // we pass red color to the shader
-        glUniform3fv(glGetUniformLocation(program, "color1"), 1, diffuseColor);
+        renderer.SetColor(diffuseColor);
     }
     // if is not a box draw when only handle spheres for now
     else {
@@ -217,7 +208,7 @@ void drawRigidBody(btRigidBody *body) {
         // TODO: retrive size of the sphere
         obj_size = sphereSize;
         // we pass yellow color to the shader
-        glUniform3fv(glGetUniformLocation(program, "color1"), 1, shootColor);
+        renderer.SetColor(shootColor);
     }
 
     // we take the transformation matrix of the rigid boby, as calculated by the physics engine
@@ -235,9 +226,7 @@ void drawRigidBody(btRigidBody *body) {
     // 2) Bullet matrix provides rotations and translations: it does not consider scale (usually the Collision Shape is generated using directly the scaled dimensions). If, like in our case, we have applied a scale to the original model, we need to multiply the scale to the rototranslation matrix created in 1). If we are working on an imported and not scaled model, we do not need to do this
     modelMatrix = glm::make_mat4(matrix) * glm::scale(modelMatrix, obj_size);
     // we create the normal matrix
-    normalMatrix = glm::inverseTranspose(glm::mat3(view * modelMatrix));
-    glUniformMatrix4fv(glGetUniformLocation(program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
-    glUniformMatrix3fv(glGetUniformLocation(program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    renderer.SetModelTrasformation(modelMatrix);
 
     // we render the model
     // N.B.) if the number of models is relatively low, this approach (we render the same mesh several time from the same buffers) can work. If we must render hundreds or more of copies of the same mesh,
@@ -325,8 +314,14 @@ int main()
     // instance of the physics class
     Physics &bulletSimulation = Physics::getInstance();
 
-    // the Shader Program for the objects used in the application
-    Shader object_shader = Shader("09_illumination_models.vert", "10_illumination_models.frag");
+    MeshRenderer renderer;
+    /// Uniforms for the illumination model
+    renderer.illumination.lightPosition = glm::vec3(5.0f, 20.0f, 20.0f);
+    renderer.illumination.Kd = 3.0f;
+    renderer.illumination.alpha = 0.6f;
+    renderer.illumination.F0 = 0.9f;
+
+
     // the Shader Program for rendering the particles
     Shader particle_shader = Shader("particle.vert", "particle.frag");
     // the Shader Program used on the framebuffer, for effect on the whole screen
@@ -500,7 +495,7 @@ int main()
     Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
 
     // constant distance from the camera and the vehicle
-    glm::vec3 cameraOffset(20.f, 15.f, -15.f);
+    glm::vec3 cameraOffset(0.f, 15.f, -25.f);
 
     /// Imgui setup
     {
@@ -575,12 +570,13 @@ int main()
 
             /// Options for camera
             ImGui::Begin("Illuminance Model");
-            ImGui::SliderFloat3("Position", glm::value_ptr(lightPos0), -50.f, 50.f);
+            auto &illumination = renderer.illumination;
+            ImGui::SliderFloat3("Position", glm::value_ptr(illumination.lightPosition), -50.f, 50.f);
             // do not allow the light to go under the plane
-            if(lightPos0.y < 0.f) lightPos0.y = -lightPos0.y;
-            ImGui::SliderFloat("Diffusive component weight", &Kd, 0.f, 10.f);
-            ImGui::SliderFloat("Roughness", &alpha, 0.01f, 1.f);
-            ImGui::SliderFloat("Fresnel reflectance", &F0, 0.01f, 1.f);
+            if(illumination.lightPosition.y < 0.f) illumination.lightPosition.y = -illumination.lightPosition.y;
+            ImGui::SliderFloat("Diffusive component weight", &illumination.Kd, 0.f, 10.f);
+            ImGui::SliderFloat("Roughness", &illumination.alpha, 0.01f, 1.f);
+            ImGui::SliderFloat("Fresnel reflectance", &illumination.F0, 0.01f, 1.f);
             ImGui::End();
 
             /// Options for camera
@@ -642,31 +638,8 @@ int main()
 
         /////////////////// OBJECTS ////////////////////////////////////////////////
         // We "install" the selected Shader Program as part of the current rendering process
-        object_shader.Use();
-        // we set the subroutines for the plane
-        // fragment shader subroutine
-        GLuint illuminationModelIndex = glGetSubroutineIndex(object_shader.Program, GL_FRAGMENT_SHADER, "GGX");
-        GLuint patternSubroutine = glGetSubroutineIndex(object_shader.Program, GL_FRAGMENT_SHADER, "Texture");
-        GLuint normalSubroutine = glGetSubroutineIndex(object_shader.Program, GL_FRAGMENT_SHADER, "NormalMap");
-        GLuint subroutines[3] = {patternSubroutine, normalSubroutine, illuminationModelIndex};
-
         // we pass projection and view matrices to the Shader Program
-        glUniformMatrix4fv(glGetUniformLocation(object_shader.Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(object_shader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
-
-        // we determine the position in the Shader Program of the uniform variables
-        GLint color1Location = glGetUniformLocation(object_shader.Program, "color1");
-        GLint color2Location = glGetUniformLocation(object_shader.Program, "color2");
-        GLint pointLightLocation = glGetUniformLocation(object_shader.Program, "pointLightPosition");
-        GLint kdLocation = glGetUniformLocation(object_shader.Program, "Kd");
-        GLint alphaLocation = glGetUniformLocation(object_shader.Program, "alpha");
-        GLint f0Location = glGetUniformLocation(object_shader.Program, "F0");
-
-        // we assign the value to the uniform variable
-        glUniform3fv(pointLightLocation, 1, glm::value_ptr(lightPos0));
-        glUniform1f(kdLocation, Kd);
-        glUniform1f(alphaLocation, alpha);
-        glUniform1f(f0Location, F0);
+        renderer.Activate(view, projection);
 
         // The plane is static, so its Collision Shape is not subject to forces, and it does not move. Thus, we do not need to use dynamicsWorld to acquire the rototraslations, but we can just use directly glm to manage the matrices
         // if, for some reason, the plane becomes a dynamic rigid body, the following code must be modified
@@ -675,30 +648,20 @@ int main()
         planeNormalMatrix = glm::mat3(1.0f);
         planeModelMatrix = glm::translate(planeModelMatrix, plane_pos);
         planeModelMatrix = glm::scale(planeModelMatrix, plane_size);
-        planeNormalMatrix = glm::inverseTranspose(glm::mat3(view * planeModelMatrix));
-        glUniformMatrix4fv(glGetUniformLocation(object_shader.Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(planeModelMatrix));
-        glUniformMatrix3fv(glGetUniformLocation(object_shader.Program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(planeNormalMatrix));
-
-        GLuint NormalMatrixSubroutine = glGetSubroutineIndex(object_shader.Program, GL_FRAGMENT_SHADER, "NormalMatrix");
-        GLuint NormalMapSubroutine = glGetSubroutineIndex(object_shader.Program, GL_FRAGMENT_SHADER, "NormalMap");
-
+        renderer.SetModelTrasformation(planeModelMatrix);
+        
         // set texture for the plane
-        auto textureLocation = glGetUniformLocation(object_shader.Program, "tex");
-        planeTexture.Activate(textureLocation);
+        renderer.SetTexture(planeTexture);
+        
         // set the normal map
-        subroutines[1] = NormalMapSubroutine;
-        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);
-
-        auto normalMapLocation = glGetUniformLocation(object_shader.Program, "normalMap");
-        planeNormalMap.Activate(normalMapLocation);
+        renderer.SetNormalMap(planeNormalMap);
 
         // we render the plane
         cubeModel->Draw();
         planeModelMatrix = glm::mat4(1.0f);
 
         // reset normals calculation in vertex shader with normal matrix not anymore with normal map
-        subroutines[1] = NormalMatrixSubroutine;
-        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);
+        renderer.SetNormalCalculation(FROM_MATRIX);
         /// DYNAMIC OBJECTS (FALLING CUBES + BULLETS)
         // array of 16 floats = "native" matrix of OpenGL. We need it as an intermediate data structure to "convert" the Bullet matrix to a GLM matrix
         GLfloat matrix[16];
@@ -706,14 +669,7 @@ int main()
 
         // we need two variables to manage the rendering of both cubes and bullets
         glm::vec3 obj_size;
-
-        // restore the pattern in the shader to fill with single color        
-        patternSubroutine = glGetSubroutineIndex(object_shader.Program, GL_FRAGMENT_SHADER, "SingleColor");
-        // we activate the subroutine using the index (this is where shaders swapping happens)
-        subroutines[0] = patternSubroutine;
-        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 3, subroutines);
   
-
         // we ask Bullet to provide the total number of Rigid Bodies in the scene
         int num_cobjs = bulletSimulation.dynamicsWorld->getNumCollisionObjects();
 
@@ -722,7 +678,7 @@ int main()
             auto bulletVehicle = vehicle.GetBulletVehicle();
             // drawing the chassis
             obj_size = chassisBox;
-            glUniform3fv(color1Location, 1, carColor);
+            renderer.SetColor(carColor);
 
             // we take the transformation matrix of the rigid boby, as calculated by the physics engine
             transform = bulletVehicle.getChassisWorldTransform();
@@ -739,9 +695,7 @@ int main()
             // 2) Bullet matrix provides rotations and translations: it does not consider scale (usually the Collision Shape is generated using directly the scaled dimensions). If, like in our case, we have applied a scale to the original model, we need to multiply the scale to the rototranslation matrix created in 1). If we are working on an imported and not scaled model, we do not need to do this
             objModelMatrix = glm::make_mat4(matrix) * glm::scale(objModelMatrix, obj_size);
             // we create the normal matrix
-            objNormalMatrix = glm::inverseTranspose(glm::mat3(view * objModelMatrix));
-            glUniformMatrix4fv(glGetUniformLocation(object_shader.Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(objModelMatrix));
-            glUniformMatrix3fv(glGetUniformLocation(object_shader.Program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(objNormalMatrix));
+            renderer.SetModelTrasformation(objModelMatrix);
 
             carModel->Draw();
             // cubeModel->Draw();
@@ -754,7 +708,7 @@ int main()
                 auto wheelRadius = wheelInfo.radius;
                 // scaling the wheel a bit, to better fit the cylinder model
                 auto wheelSize = glm::vec3(wheelWidth, wheelRadius, wheelRadius) * .5f;
-                glUniform3fv(color1Location, 1, carColor);
+                renderer.SetColor(carColor);
 
                 transform = bulletVehicle.getWheelTransformWS(wheel);
 
@@ -768,10 +722,8 @@ int main()
                 objNormalMatrix = glm::mat3(1.0f);
 
                 objModelMatrix = glm::make_mat4(matrix) * objModelMatrix;
-                // we create the normal matrix
-                objNormalMatrix = glm::inverseTranspose(glm::mat3(view * objModelMatrix));
-                glUniformMatrix4fv(glGetUniformLocation(object_shader.Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(objModelMatrix));
-                glUniformMatrix3fv(glGetUniformLocation(object_shader.Program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(objNormalMatrix));
+                // we pass the model trasformation to the renderer that creates the normal matrix for us
+                renderer.SetModelTrasformation(objModelMatrix);
 
                 cylinderModel->Draw();
             }
@@ -785,7 +737,7 @@ int main()
             // we upcast it in order to use the methods of the main class RigidBody
             btRigidBody *body = btRigidBody::upcast(obj);
 
-            drawRigidBody(body);
+            drawRigidBody(renderer, body);
         }
 
 
@@ -849,7 +801,7 @@ int main()
 
     // when I exit from the graphics loop, it is because the application is closing
     // we delete the Shader Programs
-    object_shader.Delete();
+    renderer.Delete();
     particle_shader.Delete();
     postprocessing_shader.Delete();
     // we delete the data of the physical simulation
