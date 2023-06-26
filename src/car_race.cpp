@@ -174,6 +174,17 @@ void updateCameraPosition(Vehicle vehicle, Camera &camera, const glm::vec3 offse
     camera.Position = newCameraPosition;
 }
 
+void updateEmitterPosition(Vehicle vehicle, ParticleEmitter *emitter, float deltaTime) {
+    // camera will always follow the car staying behind of it
+    auto bulletVehicle = vehicle.GetBulletVehicle();
+    btTransform chassisTransform = bulletVehicle.getChassisWorldTransform();
+    btVector3 chassisPosition = chassisTransform * btVector3(0.f, 0.f, 0.f);
+    auto chassisBox = vehicle.getChassisSize();
+    btVector3 targetPosition = chassisTransform * btVector3(chassisBox.x, chassisBox.y, chassisBox.z);
+
+    emitter->Position = toGLM(targetPosition);
+}
+
 // TODO: light bug (not happen if the function is "inlined")
 void drawRigidBody(MeshRenderer &renderer, btRigidBody *body) {
     Model *objectModel;
@@ -595,12 +606,17 @@ int main()
             ImGui::Render();
         }
 
+        // let the camera follow the vehicle
         updateCameraPosition(vehicle, camera, cameraOffset, deltaTime);
 
         // View matrix (=camera): position, view direction, camera "up" vector
         // in this example, it has been defined as a global variable (we need it in the keyboard callback function)
         view = camera.GetViewMatrix();
 
+        // move the particle source with the car
+        updateEmitterPosition(vehicle, emitter, deltaTime);
+
+        /// key handling
         // if space is pressed and we waited at least 'shootCooldown' since the last bullet
         if(keys[GLFW_KEY_SPACE]) {
             /// bullet management (space key)
