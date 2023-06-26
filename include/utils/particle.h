@@ -64,6 +64,8 @@ public:
     float Alpha0;
     float Alpha1;
 
+    bool Active = true;
+
     void Update(float deltaTime) {
         for(int i = 0; i < Size; i++) {
             auto particle = &particles[i];

@@ -24,7 +24,7 @@ class Vehicle {
 public:
     Vehicle(const glm::vec3 &chassisBoxSize, const WheelInfo &wheelInfo): WheelInfo(wheelInfo), vehicle(vehicle) {
         btTransform tr;
-        btVector3 chassisBox(chassisBoxSize.x, chassisBoxSize.y, chassisBoxSize.z);
+        chassisBox = btVector3(chassisBoxSize.x, chassisBoxSize.y, chassisBoxSize.z);
         Physics &bulletSimulation = Physics::getInstance();
         btCollisionShape *chassisShape = new btBoxShape(chassisBox);
         Chassis = bulletSimulation.localCreateRigidBody(800, tr, chassisShape);
@@ -183,9 +183,14 @@ public:
         isSteering = false;
     }
 
-    // TODO: for imgui tweeking
+    glm::vec3 getChassisSize() {
+        return glm::vec3(chassisBox.getX(), chassisBox.getY(), chassisBox.getZ());
+    }
+
+    // public for imgui tweeking
     float maxEngineForce = 2000.f;
 private:
+    btVector3 chassisBox; 
     float shootTimer = 0.f;
     const float steeringIncrement = 0.02f;
     const float steeringClamp = 0.5f;
