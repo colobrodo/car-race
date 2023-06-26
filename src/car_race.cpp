@@ -178,9 +178,8 @@ void updateEmitterPosition(Vehicle vehicle, ParticleEmitter *emitter, float delt
     // camera will always follow the car staying behind of it
     auto bulletVehicle = vehicle.GetBulletVehicle();
     btTransform chassisTransform = bulletVehicle.getChassisWorldTransform();
-    btVector3 chassisPosition = chassisTransform * btVector3(0.f, 0.f, 0.f);
     auto chassisBox = vehicle.getChassisSize();
-    btVector3 targetPosition = chassisTransform * btVector3(chassisBox.x, chassisBox.y, chassisBox.z);
+    btVector3 targetPosition = chassisTransform * btVector3(0, 0, -chassisBox.z);
 
     emitter->Position = toGLM(targetPosition);
 }
@@ -326,7 +325,7 @@ int main()
 
     MeshRenderer renderer;
     /// Uniforms for the illumination model
-    renderer.illumination.lightPosition = glm::vec3(5.0f, 20.0f, 20.0f);
+    renderer.illumination.lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
     renderer.illumination.Kd = 3.0f;
     renderer.illumination.alpha = 0.6f;
     renderer.illumination.F0 = 0.9f;
@@ -370,23 +369,25 @@ int main()
     auto emitter = new ParticleEmitter(totalParticles);
     {
         // set the random variables
-        emitter->Size0     = 0.01f;
-        emitter->Size1     = 0.05f;
+        emitter->Size0     = 0.02f;
+        emitter->Size1     = 0.1f;
         emitter->Rotation0 = 0.1f;
         emitter->Rotation1 = 5.f;
-        emitter->Lifespan0 = 1.f;
-        emitter->Lifespan1 = 3.5f;
-        emitter->Velocity  = glm::vec3(0.f, 2.f, 0.f);
-        emitter->DeltaVelocity0 = glm::vec3( .2f, 2.f,  .2f);
-        emitter->DeltaVelocity1 = glm::vec3(-.2f, 0.f, -.2f);
+        emitter->Lifespan0 = .05f;
+        emitter->Lifespan1 = .3f;
+        emitter->Velocity  = glm::vec3(0.f, 1.f, 0.f);
+        emitter->DeltaVelocity0 = glm::vec3( .8f, 1.f,  .8f);
+        emitter->DeltaVelocity1 = glm::vec3(-.8f, 0.f, -.8f);
         emitter->Color0    = glm::vec3(.8f, .1f, .1f);
         emitter->Color1    = glm::vec3(.5f, .5f, .0f);
         emitter->Scale0    = glm::vec3(1.f, 1.f, 1.f);
         emitter->Scale1    = glm::vec3(1.f, 1.f, 1.f);
-        emitter->Alpha0    = .7f;
+        emitter->Alpha0    = .6f;
         emitter->Alpha1    = 1.f;
         emitter->Gravity   = glm::vec3(0.f, -1.2f, 0.f);
     }
+
+    emitter->Active = false;
 
     // set the type of the particle 
     GLuint shapeSubroutine = glGetSubroutineIndex(particle_shader.Program, GL_FRAGMENT_SHADER, "Circle");
@@ -589,9 +590,7 @@ int main()
             /// Options for camera
             ImGui::Begin("Illuminance Model");
             auto &illumination = renderer.illumination;
-            ImGui::SliderFloat3("Position", glm::value_ptr(illumination.lightPosition), -50.f, 50.f);
-            // do not allow the light to go under the plane
-            if(illumination.lightPosition.y < 0.f) illumination.lightPosition.y = -illumination.lightPosition.y;
+            ImGui::SliderFloat3("Position", glm::value_ptr(illumination.lightDirection), -1.f, 1.f);
             ImGui::SliderFloat("Diffusive component weight", &illumination.Kd, 0.f, 10.f);
             ImGui::SliderFloat("Roughness", &illumination.alpha, 0.01f, 1.f);
             ImGui::SliderFloat("Fresnel reflectance", &illumination.F0, 0.01f, 1.f);
@@ -605,6 +604,10 @@ int main()
             // Render ImgGui
             ImGui::Render();
         }
+
+        // if the is more fast then 75 km/h we activate the turbo using the particle system
+        emitter->Active = vehicle.GetSpeed() > 75.f;
+
 
         // let the camera follow the vehicle
         updateCameraPosition(vehicle, camera, cameraOffset, deltaTime);
@@ -767,38 +770,40 @@ int main()
         // update all particles
         emitter->Update(deltaTime);
 
-        /// draw particles 
-        // initialize the particle shader
-        particle_shader.Use();
-        // we pass projection and view matrices to the particle Shader Program
-        glUniformMatrix4fv(glGetUniformLocation(particle_shader.Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(particle_shader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
-        // calculate all colors andf model matrix for each particle
-        for(int i = 0; i < emitter->size(); i++) {
-            auto particle = emitter->particles[i];
-            // setting the color of the particle
-            glm::vec4 color(particle.color, particle.alpha);
-            particleColors[i] = color;
+        if(emitter->Active) {
+            /// draw particles 
+            // initialize the particle shader
+            particle_shader.Use();
+            // we pass projection and view matrices to the particle Shader Program
+            glUniformMatrix4fv(glGetUniformLocation(particle_shader.Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
+            glUniformMatrix4fv(glGetUniformLocation(particle_shader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
+            // calculate all colors andf model matrix for each particle
+            for(int i = 0; i < emitter->size(); i++) {
+                auto particle = emitter->particles[i];
+                // setting the color of the particle
+                glm::vec4 color(particle.color, particle.alpha);
+                particleColors[i] = color;
 
-            // scaling the particle according to his variable
-            auto particleSize = particle.scale * particle.size;
-            auto transform = glm::translate(glm::mat4(1.f), particle.position);
+                // scaling the particle according to his variable
+                auto particleSize = particle.scale * particle.size;
+                auto transform = glm::translate(glm::mat4(1.f), particle.position);
 
-            objModelMatrix = glm::rotate(glm::mat4(1.f), particle.rotation, glm::vec3(0, 1, 0));
-            objModelMatrix = glm::scale(objModelMatrix, particleSize);
-            // we reset to identity at each frame
-            modelMatrices[i] = transform * objModelMatrix;
+                objModelMatrix = glm::rotate(glm::mat4(1.f), particle.rotation, glm::vec3(0, 1, 0));
+                objModelMatrix = glm::scale(objModelMatrix, particleSize);
+                // we reset to identity at each frame
+                modelMatrices[i] = transform * objModelMatrix;
+            }
+
+            // write each particle information (model-matrix and color) in the buffer
+            glBindBuffer(GL_ARRAY_BUFFER, modelMatrixBuffer);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, &modelMatrices[0]);
+            glBindBuffer(GL_ARRAY_BUFFER, particleColorBuffer);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, colorBufferSize, &particleColors[0]);
+            // draw all particles in one single call
+            glBindVertexArray(particleVAO);
+            glDrawArraysInstanced(GL_TRIANGLES, 0, 6, totalParticles);
+            glBindVertexArray(0);
         }
-
-        // write each particle information (model-matrix and color) in the buffer
-        glBindBuffer(GL_ARRAY_BUFFER, modelMatrixBuffer);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, &modelMatrices[0]);
-        glBindBuffer(GL_ARRAY_BUFFER, particleColorBuffer);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, colorBufferSize, &particleColors[0]);
-        // draw all particles in one single call
-        glBindVertexArray(particleVAO);
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, totalParticles);
-        glBindVertexArray(0);
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 

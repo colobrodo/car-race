@@ -37,7 +37,7 @@ uniform mat4 projectionMatrix;
 
 // the position of the point light is passed as uniform
 // N. B.) with more lights, and of different kinds, the shader code must be modified with a for cycle, with different treatment of the source lights parameters (directions, position, cutoff angle for spot lights, etc)
-uniform vec3 pointLightPosition;
+uniform vec3 lightVector;
 
 // light incidence direction (in view coordinates)
 out vec3 lightDir;
@@ -71,9 +71,8 @@ void main(){
   vBitangent = bitangent;
 
   // light incidence direction (in view coordinate)
-  vec4 lightPos = viewMatrix  * vec4(pointLightPosition, 1.0);
-  lightDir = lightPos.xyz - mvPosition.xyz;
-
+  lightDir = (viewMatrix  * vec4(lightVector, 0.0)).xyz;
+  
   // we apply the projection transformation
   gl_Position = projectionMatrix * mvPosition;
 

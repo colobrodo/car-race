@@ -25,7 +25,7 @@ enum TextureCoordinateCalculation {
 
 struct IlluminationModelParameter {
     // point light position
-    glm::vec3 lightPosition;
+    glm::vec3 lightDirection;
     // weight for the diffusive component
     float Kd;
     // Fresnel reflectance at 0 degree (Schlik's approximation)
@@ -198,12 +198,12 @@ private:
     }
 
     void UpdateIlluminationModel() {
-        GLint pointLightLocation = glGetUniformLocation(shader->Program, "pointLightPosition");
+        GLint lightDirLocation = glGetUniformLocation(shader->Program, "lightVector");
         GLint kdLocation = glGetUniformLocation(shader->Program, "Kd");
         GLint alphaLocation = glGetUniformLocation(shader->Program, "alpha");
         GLint f0Location = glGetUniformLocation(shader->Program, "F0");
         // we assign the values of the illumination model to the uniform variable
-        glUniform3fv(pointLightLocation, 1, glm::value_ptr(illumination.lightPosition));
+        glUniform3fv(lightDirLocation, 1, glm::value_ptr(illumination.lightDirection));
         glUniform1f(kdLocation, illumination.Kd);
         glUniform1f(alphaLocation, illumination.alpha);
         glUniform1f(f0Location, illumination.F0);
