@@ -66,7 +66,7 @@ uniform float shininess;
 uniform float alpha; // rugosity - 0 : smooth, 1: rough
 uniform float F0; // fresnel reflectance at normal incidence
 
-float repeat = 10.0;
+float repeat = 20.0;
 
 
 ////////////////////////////////////////////////////////////////////
@@ -114,7 +114,7 @@ vec2 ParallaxMapping() {
     // we are inverting the TBN matrix to go from tangent space to uv texture space
     // the inverse of an orthogonal matrix is his transpose
     mat3 TBN_inv = transpose(getTBN());
-    vec3 V = normalize(TBN_inv * lightDir);
+    vec3 V = normalize(TBN_inv * vViewPosition);
     vec2 p = V.xy / V.z * (height * parallaxMappingScale);
     return uv - p;
 }
@@ -494,8 +494,7 @@ void main(void)
     // DEBUG: normals
     // color = color * getInterpolation();
     // color = Get_Normal();
-    // vec2 repeated_UV = mod(interp_UV * repeat, 1.0);
-    // color = texture(parallaxMap, repeated_UV).r * vec3(1,1, 1);
+    // color = vec3(Get_UV() - InterpolatedUV(), 0);
 
     colorFrag = vec4(color, 1.0);
 }

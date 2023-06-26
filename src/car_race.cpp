@@ -488,12 +488,12 @@ int main()
     glm::mat4 objModelMatrix = glm::mat4(1.0f);
     glm::mat4 planeModelMatrix = glm::mat4(1.0f);
     // textures for plane
-    // Texture planeTexture("../textures/DirtFloor.jpg");
-    // Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
-    // Texture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
-    Texture planeTexture("../textures/Stone.jpg");
-    Texture planeNormalMap("../textures/Stone_NormalMap.jpg");
-    Texture planeDisplacementMap("../textures/Stone_DispMap.jpg");
+    Texture planeTexture("../textures/DirtFloor.jpg");
+    Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
+    Texture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
+    // Texture planeTexture("../textures/Stone.jpg");
+    // Texture planeNormalMap("../textures/Stone_NormalMap.jpg");
+    // Texture planeDisplacementMap("../textures/Stone_DispMap.jpg");
     Texture grassTexture("../textures/Stone.jpg");
     Texture grassNormalMap("../textures/Stone_NormalMap.jpg");
     Texture grassDisplacementMap("../textures/Stone_DispMap.jpg");
@@ -661,7 +661,7 @@ int main()
         // set the normal map
         renderer.SetNormalMap(planeNormalMap);
         // set the displacement texture that is used as parallax map
-        renderer.SetParallaxMap(planeDisplacementMap, .1f);
+        renderer.SetParallaxMap(planeDisplacementMap, .01f);
 
         // renderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
 
