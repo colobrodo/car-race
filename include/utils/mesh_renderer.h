@@ -4,24 +4,9 @@
 #include "../glm/gtc/matrix_inverse.hpp"
 #include "../glm/gtc/type_ptr.hpp"
 
+#include "object_renderer.h";
 #include "texture.h";
 #include "shader.h";
-
-enum PatternType {
-    COLOR,
-    GRID,
-    TEXTURE,
-};
-
-enum NormalCalculation {
-    NORMAL_MAP,
-    FROM_MATRIX,
-};
-
-enum TextureCoordinateCalculation {
-    UV,
-    PARALLAX_MAP,
-};
 
 struct IlluminationModelParameter {
     // point light position
@@ -34,7 +19,8 @@ struct IlluminationModelParameter {
     float alpha;
 };
 
-class MeshRenderer {
+
+class MeshRenderer: ObjectRenderer {
 public:
     MeshRenderer() {
         // the Shader Program for the objects used in the application

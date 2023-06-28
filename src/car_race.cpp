@@ -243,6 +243,72 @@ void drawRigidBody(MeshRenderer &renderer, btRigidBody *body) {
     objectModel->Draw();
 }
 
+void drawPlane(MeshRenderer &renderer, glm::vec3 planePos, glm::vec3 planeSize) {
+    // The plane is static, so its Collision Shape is not subject to forces, and it does not move. Thus, we do not need to use dynamicsWorld to acquire the rototraslations, but we can just use directly glm to manage the matrices
+    // if, for some reason, the plane becomes a dynamic rigid body, the following code must be modified
+    // we reset to identity at each frame
+    glm::mat4 planeModelMatrix(1.0f);
+    planeModelMatrix = glm::translate(planeModelMatrix, planePos);
+    planeModelMatrix = glm::scale(planeModelMatrix, planeSize);
+    renderer.SetModelTrasformation(planeModelMatrix);
+    
+    // we render the plane
+    cubeModel->Draw();
+}
+
+void drawVehicle(MeshRenderer &renderer, Vehicle &vehicle) {
+    auto bulletVehicle = vehicle.GetBulletVehicle();
+    // drawing the chassis
+    renderer.SetColor(carColor);
+    // save a temp matrix for conversion from bullet to opengl
+    float matrix[16];
+
+    // get car dimension
+    auto chassisBox = vehicle.getChassisSize();
+
+    // we take the transformation matrix of the rigid boby, as calculated by the physics engine
+    auto transform = bulletVehicle.getChassisWorldTransform();
+
+    // we convert the Bullet matrix (transform) to an array of floats
+    transform.getOpenGLMatrix(matrix);
+
+    // we reset to identity at each frame
+    glm::mat4 objModelMatrix(1.0f);
+
+    // we create the GLM transformation matrix
+    // 1) we convert the array of floats to a GLM mat4 (using make_mat4 method)
+    // 2) Bullet matrix provides rotations and translations: it does not consider scale (usually the Collision Shape is generated using directly the scaled dimensions). If, like in our case, we have applied a scale to the original model, we need to multiply the scale to the rototranslation matrix created in 1). If we are working on an imported and not scaled model, we do not need to do this
+    objModelMatrix = glm::make_mat4(matrix) * glm::scale(objModelMatrix, chassisBox);
+    // we create the normal matrix
+    renderer.SetModelTrasformation(objModelMatrix);
+    carModel->Draw();
+
+    // draw wheels
+    for(int wheel = 0; wheel < bulletVehicle.getNumWheels(); wheel++) {
+        auto wheelWidth = vehicle.WheelInfo.width;
+        auto wheelRadius = vehicle.WheelInfo.radius;
+        // scaling the wheel a bit, to better fit the cylinder model
+        auto wheelSize = glm::vec3(wheelWidth, wheelRadius, wheelRadius) * .5f;
+        renderer.SetColor(carColor);
+
+        transform = bulletVehicle.getWheelTransformWS(wheel);
+
+        // we convert the Bullet matrix (transform) to an array of floats
+        transform.getOpenGLMatrix(matrix);
+
+        // wheel transformation: cylinder is oriented toward the y axis, while we need a cylinder z 
+        // we reset to identity at each frame
+        objModelMatrix = glm::mat4(1.0f);
+        objModelMatrix = glm::rotate(glm::scale(objModelMatrix, wheelSize), glm::radians(90.f), glm::vec3(0.f, 0.f, 1.f));
+        objModelMatrix = glm::make_mat4(matrix) * objModelMatrix;
+        // we pass the model trasformation to the renderer that creates the normal matrix for us
+        renderer.SetModelTrasformation(objModelMatrix);
+
+        cylinderModel->Draw();
+    }
+
+}
+
 ////////////////// MAIN function ///////////////////////
 int main()
 {
@@ -498,7 +564,6 @@ int main()
 
     // Model and Normal transformation matrices for the objects in the scene: we set to identity
     glm::mat4 objModelMatrix = glm::mat4(1.0f);
-    glm::mat4 planeModelMatrix = glm::mat4(1.0f);
     // textures for plane
     Texture planeTexture("../textures/DirtFloor.jpg");
     Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
@@ -662,19 +727,12 @@ int main()
         // bulletSimulation.dynamicsWorld->stepSimulation(1.0/60.0,10);
         bulletSimulation.dynamicsWorld->stepSimulation((deltaTime < maxSecPerFrame ? deltaTime : maxSecPerFrame), 10);
 
-        /////////////////// OBJECTS ////////////////////////////////////////////////
+        /// Draw: after update all the object in our scene we draw them  
         // We "install" the selected Shader Program as part of the current rendering process
         // we pass projection and view matrices to the Shader Program
+        // the renderer object can also render the object on a buffer (like shadow map)
         renderer.Activate(view, projection);
 
-        // The plane is static, so its Collision Shape is not subject to forces, and it does not move. Thus, we do not need to use dynamicsWorld to acquire the rototraslations, but we can just use directly glm to manage the matrices
-        // if, for some reason, the plane becomes a dynamic rigid body, the following code must be modified
-        // we reset to identity at each frame
-        planeModelMatrix = glm::mat4(1.0f);
-        planeModelMatrix = glm::translate(planeModelMatrix, plane_pos);
-        planeModelMatrix = glm::scale(planeModelMatrix, plane_size);
-        renderer.SetModelTrasformation(planeModelMatrix);
-        
         // set texture for the plane
         renderer.SetTexture(planeTexture);
         // set the normal map
@@ -683,80 +741,22 @@ int main()
         renderer.SetParallaxMap(planeDisplacementMap, .01f);
 
         // renderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
-
-        // we render the plane
-        cubeModel->Draw();
-        planeModelMatrix = glm::mat4(1.0f);
+        
+        drawPlane(renderer, plane_pos, plane_size);
 
         // do not use parallax map anymore but restore uv coordinate interpolation
         renderer.SetTexCoordinateCalculation(UV);
         // reset normals calculation in vertex shader with normal matrix not anymore with normal map
-        renderer.SetNormalCalculation(FROM_MATRIX);
-        /// DYNAMIC OBJECTS (FALLING CUBES + BULLETS)
-        // array of 16 floats = "native" matrix of OpenGL. We need it as an intermediate data structure to "convert" the Bullet matrix to a GLM matrix
-        GLfloat matrix[16];
-        btTransform transform;
+        renderer.SetNormalCalculation(FROM_MATRIX);        
+        drawVehicle(renderer, vehicle);
 
         // we need two variables to manage the rendering of both cubes and bullets
         glm::vec3 obj_size;
-  
         // we ask Bullet to provide the total number of Rigid Bodies in the scene
         int num_cobjs = bulletSimulation.dynamicsWorld->getNumCollisionObjects();
 
-        // draw vehicle
-        {
-            auto bulletVehicle = vehicle.GetBulletVehicle();
-            // drawing the chassis
-            obj_size = chassisBox;
-            renderer.SetColor(carColor);
-
-            // we take the transformation matrix of the rigid boby, as calculated by the physics engine
-            transform = bulletVehicle.getChassisWorldTransform();
-
-            // we convert the Bullet matrix (transform) to an array of floats
-            transform.getOpenGLMatrix(matrix);
-
-            // we reset to identity at each frame
-            objModelMatrix = glm::mat4(1.0f);
-
-            // we create the GLM transformation matrix
-            // 1) we convert the array of floats to a GLM mat4 (using make_mat4 method)
-            // 2) Bullet matrix provides rotations and translations: it does not consider scale (usually the Collision Shape is generated using directly the scaled dimensions). If, like in our case, we have applied a scale to the original model, we need to multiply the scale to the rototranslation matrix created in 1). If we are working on an imported and not scaled model, we do not need to do this
-            objModelMatrix = glm::make_mat4(matrix) * glm::scale(objModelMatrix, obj_size);
-            // we create the normal matrix
-            renderer.SetModelTrasformation(objModelMatrix);
-            carModel->Draw();
-
-            // we "reset" the matrix
-            objModelMatrix = glm::mat4(1.0f);
-
-            // draw wheels
-            for(int wheel = 0; wheel < bulletVehicle.getNumWheels(); wheel++) {
-                auto wheelWidth = wheelInfo.width;
-                auto wheelRadius = wheelInfo.radius;
-                // scaling the wheel a bit, to better fit the cylinder model
-                auto wheelSize = glm::vec3(wheelWidth, wheelRadius, wheelRadius) * .5f;
-                renderer.SetColor(carColor);
-
-                transform = bulletVehicle.getWheelTransformWS(wheel);
-
-                // we convert the Bullet matrix (transform) to an array of floats
-                transform.getOpenGLMatrix(matrix);
-
-                // wheel transformation: cylinder is oriented toward the y axis, while we need a cylinder z 
-                // we reset to identity at each frame
-                objModelMatrix = glm::mat4(1.0f);
-                objModelMatrix = glm::rotate(glm::scale(objModelMatrix, wheelSize), glm::radians(90.f), glm::vec3(0.f, 0.f, 1.f));
-                objModelMatrix = glm::make_mat4(matrix) * objModelMatrix;
-                // we pass the model trasformation to the renderer that creates the normal matrix for us
-                renderer.SetModelTrasformation(objModelMatrix);
-
-                cylinderModel->Draw();
-            }
-        }
-
         // we cycle among all the Rigid Bodies (starting from 1 to avoid the plane)
-        for (i=cubes_start_i; i<num_cobjs; i++)
+        for (i=cubes_start_i; i< num_cobjs; i++)
         {
             // we take the Collision Object from the list
             btCollisionObject *obj = bulletSimulation.dynamicsWorld->getCollisionObjectArray()[i];
@@ -766,12 +766,11 @@ int main()
             drawRigidBody(renderer, body);
         }
 
-
         // update all particles
         emitter->Update(deltaTime);
 
         if(emitter->Active) {
-            /// draw particles 
+            /// draw particles TODO: create a ParticleRenderer
             // initialize the particle shader
             particle_shader.Use();
             // we pass projection and view matrices to the particle Shader Program

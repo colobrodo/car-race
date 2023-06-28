@@ -496,5 +496,7 @@ void main(void)
     // color = Get_Normal();
     // color = vec3(Get_UV() - InterpolatedUV(), 0);
 
+    // gamma correctiong the color, disabled for now
+    // color = pow(color, vec3(1.0 / 2.2));
     colorFrag = vec4(color, 1.0);
 }
