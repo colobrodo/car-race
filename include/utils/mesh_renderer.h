@@ -94,6 +94,13 @@ public:
         texture.Activate(parallaxMapLocation);
     }
 
+    void SetShadowMap(GLuint texture) {
+        auto shadowMapLocation = glGetUniformLocation(shader->Program, "shadowMap");
+        glActiveTexture(GL_TEXTURE0 + texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glUniform1i(shadowMapLocation, texture);
+    }
+
     void Delete() {
         shader->Delete();
     }

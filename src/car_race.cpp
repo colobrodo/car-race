@@ -63,6 +63,7 @@ positive Z axis points "outside" the screen
 #include <utils/particle.h>
 #include <utils/texture.h>
 #include <utils/mesh_renderer.h>
+#include <utils/shadow_renderer.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -76,6 +77,9 @@ positive Z axis points "outside" the screen
 
 // Dimensioni della finestra dell'applicazione
 GLuint screenWidth = 1400, screenHeight = 1100;
+
+// shadow map framebuffer dimensions
+const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 
 // callback functions for keyboard and mouse events
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -185,7 +189,7 @@ void updateEmitterPosition(Vehicle vehicle, ParticleEmitter *emitter, float delt
 }
 
 // TODO: light bug (not happen if the function is "inlined")
-void drawRigidBody(MeshRenderer &renderer, btRigidBody *body) {
+void drawRigidBody(ObjectRenderer &renderer, btRigidBody *body) {
     Model *objectModel;
 
     // object transformation first getted as btTransform, then stored in "OpenGL"
@@ -243,7 +247,7 @@ void drawRigidBody(MeshRenderer &renderer, btRigidBody *body) {
     objectModel->Draw();
 }
 
-void drawPlane(MeshRenderer &renderer, glm::vec3 planePos, glm::vec3 planeSize) {
+void drawPlane(ObjectRenderer &renderer, glm::vec3 planePos, glm::vec3 planeSize) {
     // The plane is static, so its Collision Shape is not subject to forces, and it does not move. Thus, we do not need to use dynamicsWorld to acquire the rototraslations, but we can just use directly glm to manage the matrices
     // if, for some reason, the plane becomes a dynamic rigid body, the following code must be modified
     // we reset to identity at each frame
@@ -256,7 +260,7 @@ void drawPlane(MeshRenderer &renderer, glm::vec3 planePos, glm::vec3 planeSize) 
     cubeModel->Draw();
 }
 
-void drawVehicle(MeshRenderer &renderer, Vehicle &vehicle) {
+void drawVehicle(ObjectRenderer &renderer, Vehicle &vehicle) {
     auto bulletVehicle = vehicle.GetBulletVehicle();
     // drawing the chassis
     renderer.SetColor(carColor);
@@ -396,6 +400,8 @@ int main()
     renderer.illumination.alpha = 0.6f;
     renderer.illumination.F0 = 0.9f;
 
+    // renderer for the shadow map
+    ShadowRenderer shadowRenderer;
 
     // the Shader Program for rendering the particles
     Shader particle_shader = Shader("particle.vert", "particle.frag");
@@ -578,24 +584,44 @@ int main()
     // Texture grassTexture("../textures/Grass.jpg");
     // Texture grassNormalMap("../textures/Grass_NormalMap.jpg");
 
+    // create shadow map frame buffer object
+    GLuint depthMapFBO;
+    glGenFramebuffers(1, &depthMapFBO);
+    // create texture for shadow map
+    GLuint depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 
+                SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // attach the texture to the framebuffer object
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+
     // function for drawing the entire scene, the passed renderer should be active
     auto renderScene = [&](ObjectRenderer &objectRenderer) {
         // set texture for the plane
-        renderer.SetTexture(planeTexture);
+        objectRenderer.SetTexture(planeTexture);
         // set the normal map
-        renderer.SetNormalMap(planeNormalMap);
+        objectRenderer.SetNormalMap(planeNormalMap);
         // set the displacement texture that is used as parallax map
-        renderer.SetParallaxMap(planeDisplacementMap, .01f);
+        objectRenderer.SetParallaxMap(planeDisplacementMap, .01f);
 
-        // renderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
+        // objectRenderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
         
-        drawPlane(renderer, plane_pos, plane_size);
+        drawPlane(objectRenderer, plane_pos, plane_size);
 
         // do not use parallax map anymore but restore uv coordinate interpolation
-        renderer.SetTexCoordinateCalculation(UV);
+        objectRenderer.SetTexCoordinateCalculation(UV);
         // reset normals calculation in vertex shader with normal matrix not anymore with normal map
-        renderer.SetNormalCalculation(FROM_MATRIX);        
-        drawVehicle(renderer, vehicle);
+        objectRenderer.SetNormalCalculation(FROM_MATRIX);        
+        drawVehicle(objectRenderer, vehicle);
 
         // we need two variables to manage the rendering of both cubes and bullets
         glm::vec3 obj_size;
@@ -610,7 +636,7 @@ int main()
             // we upcast it in order to use the methods of the main class RigidBody
             btRigidBody *body = btRigidBody::upcast(obj);
 
-            drawRigidBody(renderer, body);
+            drawRigidBody(objectRenderer, body);
         }
     };
 
@@ -705,6 +731,20 @@ int main()
         // bulletSimulation.dynamicsWorld->stepSimulation(1.0/60.0,10);
         bulletSimulation.dynamicsWorld->stepSimulation((deltaTime < maxSecPerFrame ? deltaTime : maxSecPerFrame), 10);
 
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        float near_plane = 1.0f, far_plane = 7.5f;
+        glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
+        glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f), 
+                                          glm::vec3( 0.0f, 0.0f,  0.0f), 
+                                          glm::vec3( 0.0f, 1.0f,  0.0f)); 
+
+        shadowRenderer.Activate(lightView, lightProjection);
+        renderScene(shadowRenderer);
+
+        glViewport(0, 0, screenWidth, screenHeight);
         // reset the framebuffer to main buffer application
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -718,6 +758,7 @@ int main()
         // we pass projection and view matrices to the Shader Program
         // the renderer object can also render the object on a buffer (like shadow map)
         renderer.Activate(view, projection);
+        renderer.SetShadowMap(depthMap);
         renderScene(renderer);
 
         // update all particles

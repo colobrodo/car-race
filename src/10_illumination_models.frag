@@ -53,6 +53,10 @@ uniform float parallaxMappingScale;
 uniform sampler2D tex1;
 uniform sampler2D normalMap1;
 uniform sampler2D parallaxMap;
+
+// shadows
+uniform sampler2D shadowMap;
+
 // second texture
 uniform sampler2D tex2;
 uniform sampler2D normalMap2;
