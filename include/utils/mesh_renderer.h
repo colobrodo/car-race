@@ -20,7 +20,7 @@ struct IlluminationModelParameter {
 };
 
 
-class MeshRenderer: ObjectRenderer {
+class MeshRenderer: public ObjectRenderer {
 public:
     MeshRenderer() {
         // the Shader Program for the objects used in the application
@@ -35,12 +35,7 @@ public:
     }
 
     void Activate(glm::mat4 viewMatrix, glm::mat4 projection) {
-        // save the view matrix to later calculate the normal matrix to be passed to the shader
-        view = viewMatrix;
-        // activates the shader and instantiate the view and projection matrix for the scene
-        shader->Use();
-        glUniformMatrix4fv(glGetUniformLocation(shader->Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(shader->Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
+        ObjectRenderer::Activate(viewMatrix, projection);
         UpdateIlluminationModel();
     }
 
@@ -58,12 +53,6 @@ public:
         dirtNormalMap.Activate(normalMapLocation);
         normalMapLocation = glGetUniformLocation(shader->Program, "normalMap2");
         grassNormalMap.Activate(normalMapLocation);
-    }
-
-    void SetModelTrasformation(glm::mat4 modelMatrix) {
-        glm::mat3 normalMatrix = glm::inverseTranspose(glm::mat3(view * modelMatrix));
-        glUniformMatrix4fv(glGetUniformLocation(shader->Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
-        glUniformMatrix3fv(glGetUniformLocation(shader->Program, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
     }
 
     void SetColor(glm::vec3 color) {
@@ -159,8 +148,6 @@ public:
     }
 
     IlluminationModelParameter illumination;
-    // TODO: set as private
-    Shader *shader;
 private:
     void setPatternSubroutine(char *subroutineName) {
         GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);

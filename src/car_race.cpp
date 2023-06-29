@@ -613,19 +613,6 @@ int main()
         // Check is an I/O event is happening
         glfwPollEvents();
 
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        // we "clear" the frame and z buffer
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
-
-        // we set the rendering mode
-        if (wireframe)
-            // Draw in wireframe
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        else
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
         {
             /// ImGui Dialog
             // Start the Dear ImGui frame
@@ -726,6 +713,15 @@ int main()
         // For example, this example, with limited lighting, simple materials, no texturing, works correctly even setting:
         // bulletSimulation.dynamicsWorld->stepSimulation(1.0/60.0,10);
         bulletSimulation.dynamicsWorld->stepSimulation((deltaTime < maxSecPerFrame ? deltaTime : maxSecPerFrame), 10);
+
+
+        // reset the framebuffer to main buffer application
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        // we "clear" the frame and z buffer
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         /// Draw: after update all the object in our scene we draw them  
         // We "install" the selected Shader Program as part of the current rendering process
