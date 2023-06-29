@@ -578,6 +578,42 @@ int main()
     // Texture grassTexture("../textures/Grass.jpg");
     // Texture grassNormalMap("../textures/Grass_NormalMap.jpg");
 
+    // function for drawing the entire scene, the passed renderer should be active
+    auto renderScene = [&](ObjectRenderer &objectRenderer) {
+        // set texture for the plane
+        renderer.SetTexture(planeTexture);
+        // set the normal map
+        renderer.SetNormalMap(planeNormalMap);
+        // set the displacement texture that is used as parallax map
+        renderer.SetParallaxMap(planeDisplacementMap, .01f);
+
+        // renderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
+        
+        drawPlane(renderer, plane_pos, plane_size);
+
+        // do not use parallax map anymore but restore uv coordinate interpolation
+        renderer.SetTexCoordinateCalculation(UV);
+        // reset normals calculation in vertex shader with normal matrix not anymore with normal map
+        renderer.SetNormalCalculation(FROM_MATRIX);        
+        drawVehicle(renderer, vehicle);
+
+        // we need two variables to manage the rendering of both cubes and bullets
+        glm::vec3 obj_size;
+        // we ask Bullet to provide the total number of Rigid Bodies in the scene
+        int num_cobjs = bulletSimulation.dynamicsWorld->getNumCollisionObjects();
+
+        // we cycle among all the Rigid Bodies (starting from 1 to avoid the plane)
+        for (i=cubes_start_i; i< num_cobjs; i++)
+        {
+            // we take the Collision Object from the list
+            btCollisionObject *obj = bulletSimulation.dynamicsWorld->getCollisionObjectArray()[i];
+            // we upcast it in order to use the methods of the main class RigidBody
+            btRigidBody *body = btRigidBody::upcast(obj);
+
+            drawRigidBody(renderer, body);
+        }
+    };
+
     // constant distance from the camera and the vehicle
     glm::vec3 cameraOffset(0.f, 15.f, -25.f);
 
@@ -613,53 +649,8 @@ int main()
         // Check is an I/O event is happening
         glfwPollEvents();
 
-        {
-            /// ImGui Dialog
-            // Start the Dear ImGui frame
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
-
-            // Actual ImgGui Dialogs drawing
-            // Dialog for Vehicle configuration
-            ImGui::Begin("Vehicle");
-            ImGui::Text("Speed: %f Km/h", vehicle.GetSpeed());
-
-            ImGui::SeparatorText("Wheel");
-            ImGui::SliderFloat("Width", &vehicle.WheelInfo.width, .3f, .6f);
-            ImGui::SliderFloat("Radius", &vehicle.WheelInfo.radius, .1f, 1.f);
-            ImGui::SliderFloat("Friction", &vehicle.WheelInfo.friction, 1.f, 1000.f);
-            ImGui::SeparatorText("Suspension");
-            ImGui::SliderFloat("Stiffness", &vehicle.WheelInfo.suspensionStiffness, 0.f, 20.f);
-            ImGui::SliderFloat("Damping", &vehicle.WheelInfo.suspensionDamping, 1.f, 10.f);
-            ImGui::SliderFloat("Compression", &vehicle.WheelInfo.suspensionCompression, 1.f, 10.f);
-            ImGui::SliderFloat("Rest Length", &vehicle.WheelInfo.suspensionRestLength, 0.f, 2.f);
-            ImGui::Separator();
-            ImGui::SliderFloat("Engine Force", &vehicle.maxEngineForce, 500.0f, 3000.0f);
-            ImGui::SliderFloat("Roll Influence", &vehicle.WheelInfo.rollInfluence, 0.0f, 2.0f);
-            ImGui::End();
-
-            /// Options for camera
-            ImGui::Begin("Illuminance Model");
-            auto &illumination = renderer.illumination;
-            ImGui::SliderFloat3("Position", glm::value_ptr(illumination.lightDirection), -1.f, 1.f);
-            ImGui::SliderFloat("Diffusive component weight", &illumination.Kd, 0.f, 10.f);
-            ImGui::SliderFloat("Roughness", &illumination.alpha, 0.01f, 1.f);
-            ImGui::SliderFloat("Fresnel reflectance", &illumination.F0, 0.01f, 1.f);
-            ImGui::End();
-
-            /// Options for camera
-            ImGui::Begin("Camera");
-            ImGui::SliderFloat3("Offset", glm::value_ptr(cameraOffset), -40.f, 40.f);
-            ImGui::End();
-
-            // Render ImgGui
-            ImGui::Render();
-        }
-
         // if the is more fast then 75 km/h we activate the turbo using the particle system
         emitter->Active = vehicle.GetSpeed() > 75.f;
-
 
         // let the camera follow the vehicle
         updateCameraPosition(vehicle, camera, cameraOffset, deltaTime);
@@ -714,7 +705,6 @@ int main()
         // bulletSimulation.dynamicsWorld->stepSimulation(1.0/60.0,10);
         bulletSimulation.dynamicsWorld->stepSimulation((deltaTime < maxSecPerFrame ? deltaTime : maxSecPerFrame), 10);
 
-
         // reset the framebuffer to main buffer application
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -728,39 +718,7 @@ int main()
         // we pass projection and view matrices to the Shader Program
         // the renderer object can also render the object on a buffer (like shadow map)
         renderer.Activate(view, projection);
-
-        // set texture for the plane
-        renderer.SetTexture(planeTexture);
-        // set the normal map
-        renderer.SetNormalMap(planeNormalMap);
-        // set the displacement texture that is used as parallax map
-        renderer.SetParallaxMap(planeDisplacementMap, .01f);
-
-        // renderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
-        
-        drawPlane(renderer, plane_pos, plane_size);
-
-        // do not use parallax map anymore but restore uv coordinate interpolation
-        renderer.SetTexCoordinateCalculation(UV);
-        // reset normals calculation in vertex shader with normal matrix not anymore with normal map
-        renderer.SetNormalCalculation(FROM_MATRIX);        
-        drawVehicle(renderer, vehicle);
-
-        // we need two variables to manage the rendering of both cubes and bullets
-        glm::vec3 obj_size;
-        // we ask Bullet to provide the total number of Rigid Bodies in the scene
-        int num_cobjs = bulletSimulation.dynamicsWorld->getNumCollisionObjects();
-
-        // we cycle among all the Rigid Bodies (starting from 1 to avoid the plane)
-        for (i=cubes_start_i; i< num_cobjs; i++)
-        {
-            // we take the Collision Object from the list
-            btCollisionObject *obj = bulletSimulation.dynamicsWorld->getCollisionObjectArray()[i];
-            // we upcast it in order to use the methods of the main class RigidBody
-            btRigidBody *body = btRigidBody::upcast(obj);
-
-            drawRigidBody(renderer, body);
-        }
+        renderScene(renderer);
 
         // update all particles
         emitter->Update(deltaTime);
@@ -798,6 +756,50 @@ int main()
             glBindVertexArray(particleVAO);
             glDrawArraysInstanced(GL_TRIANGLES, 0, 6, totalParticles);
             glBindVertexArray(0);
+        }
+
+        {
+            /// ImGui Dialog
+            // Start the Dear ImGui frame
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+
+            // Actual ImgGui Dialogs drawing
+            // Dialog for Vehicle configuration
+            ImGui::Begin("Vehicle");
+            ImGui::Text("Speed: %f Km/h", vehicle.GetSpeed());
+
+            ImGui::SeparatorText("Wheel");
+            ImGui::SliderFloat("Width", &vehicle.WheelInfo.width, .3f, .6f);
+            ImGui::SliderFloat("Radius", &vehicle.WheelInfo.radius, .1f, 1.f);
+            ImGui::SliderFloat("Friction", &vehicle.WheelInfo.friction, 1.f, 1000.f);
+            ImGui::SeparatorText("Suspension");
+            ImGui::SliderFloat("Stiffness", &vehicle.WheelInfo.suspensionStiffness, 0.f, 20.f);
+            ImGui::SliderFloat("Damping", &vehicle.WheelInfo.suspensionDamping, 1.f, 10.f);
+            ImGui::SliderFloat("Compression", &vehicle.WheelInfo.suspensionCompression, 1.f, 10.f);
+            ImGui::SliderFloat("Rest Length", &vehicle.WheelInfo.suspensionRestLength, 0.f, 2.f);
+            ImGui::Separator();
+            ImGui::SliderFloat("Engine Force", &vehicle.maxEngineForce, 500.0f, 3000.0f);
+            ImGui::SliderFloat("Roll Influence", &vehicle.WheelInfo.rollInfluence, 0.0f, 2.0f);
+            ImGui::End();
+
+            /// Options for camera
+            ImGui::Begin("Illuminance Model");
+            auto &illumination = renderer.illumination;
+            ImGui::SliderFloat3("Position", glm::value_ptr(illumination.lightDirection), -1.f, 1.f);
+            ImGui::SliderFloat("Diffusive component weight", &illumination.Kd, 0.f, 10.f);
+            ImGui::SliderFloat("Roughness", &illumination.alpha, 0.01f, 1.f);
+            ImGui::SliderFloat("Fresnel reflectance", &illumination.F0, 0.01f, 1.f);
+            ImGui::End();
+
+            /// Options for camera
+            ImGui::Begin("Camera");
+            ImGui::SliderFloat3("Offset", glm::value_ptr(cameraOffset), -40.f, 40.f);
+            ImGui::End();
+
+            // Render ImgGui
+            ImGui::Render();
         }
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
