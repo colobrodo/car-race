@@ -360,6 +360,13 @@ float G1(float angle, float alpha)
     return num / denom;
 }
 
+vec2 poissonDisk[4] = vec2[](
+  vec2( -0.94201624, -0.39906216 ),
+  vec2( 0.94558609, -0.76890725 ),
+  vec2( -0.094184101, -0.92938870 ),
+  vec2( 0.34495938, 0.29387760 )
+);
+
 float calculateShadow() {
     // given the fragment position in light coordinates, we apply the perspective divide. Usually, perspective divide is applied in an automatic way to the coordinates saved in the gl_Position variable. In this case, the vertex position in light coordinates has been saved in a separate variable, so we need to do it manually
     vec3 lightPosOnPlane = lightFragPosition.xyz / lightFragPosition.w;
@@ -367,8 +374,18 @@ float calculateShadow() {
     lightPosOnPlane = lightPosOnPlane * 0.5 + 0.5;
     float bias = 0.001;
     lightPosOnPlane.z -= bias;
-    float shadowDepth = texture(shadowMap, lightPosOnPlane.xyz);
-    return 1 - shadowDepth;
+    // checking if the fragment coordinate is outside the light view frustum
+    if(lightPosOnPlane.z > 1.0)
+        return 1.0;
+    // poisson sampling for better shadows, inspired from:
+    // http://www.opengl-tutorial.org/intermediate-tutorials/tutorial-16-shadow-mapping/#poisson-sampling
+    float shadow = 1.0; 
+    for (int i = 0; i < 4; i++) {
+        vec3 samplePoint = vec3(lightPosOnPlane.xy + poissonDisk[i] / 700, lightPosOnPlane.z);
+        float shadowDepth = 1.0 - texture(shadowMap, samplePoint);
+        shadow -= 0.25 * shadowDepth; 
+    }
+    return shadow;
 }
 
 //////////////////////////////////////////
@@ -435,7 +452,7 @@ vec3 GGX(vec3 diffuseColor) // this name is the one which is detected by the Set
     // Li is considered as equal to 1: light is white, and we have not applied attenuation. With colored lights, and with attenuation, the code must be modified and the Li factor must be multiplied to finalColor
     // for now the shadow is applied to the whole color because there is no ambient component in the illumination model
     // if in the future we add an ambient light we shouldn't multiply this component by the shadow
-    return (1 - shadow) * (lambert + specular) * NdotL;
+    return shadow * (lambert + specular) * NdotL;
 }
 //////////////////////////////////////////
 
