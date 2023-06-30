@@ -34,6 +34,9 @@ uniform mat4 viewMatrix;
 // Projection matrix
 uniform mat4 projectionMatrix;
 
+uniform mat4 lightView;
+uniform mat4 lightProjection;
+
 
 // the position of the point light is passed as uniform
 // N. B.) with more lights, and of different kinds, the shader code must be modified with a for cycle, with different treatment of the source lights parameters (directions, position, cutoff angle for spot lights, etc)
@@ -55,8 +58,10 @@ out vec2 interp_UV;
 // to do this, we need to calculate in the vertex shader the view direction (in view coordinates) for each vertex, and to have it interpolated for each fragment by the rasterization stage
 out vec3 vViewPosition;
 
+out vec4 lightFragPosition;
 
-void main(){
+
+void main() {
 
   // vertex position in ModelView coordinate (see the last line for the application of projection)
   // when I need to use coordinates in camera coordinates, I need to split the application of model and view transformations from the projection transformations
@@ -75,6 +80,8 @@ void main(){
   
   // we apply the projection transformation
   gl_Position = projectionMatrix * mvPosition;
+
+  lightFragPosition = lightProjection * lightView * modelMatrix * vec4(position, 1.0);
 
   interp_UV = UV;
 

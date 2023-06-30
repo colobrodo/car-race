@@ -33,6 +33,8 @@ in vec3 vViewPosition;
 // UV texture coordinates, interpolated in each fragment by the rasterization process
 in vec2 interp_UV;
 
+in vec4 lightFragPosition;
+
 uniform mat4 modelMatrix;
 
 // ambient, diffusive and specular components (passed from the application)
@@ -55,7 +57,7 @@ uniform sampler2D normalMap1;
 uniform sampler2D parallaxMap;
 
 // shadows
-uniform sampler2D shadowMap;
+uniform sampler2DShadow shadowMap;
 
 // second texture
 uniform sampler2D tex2;
@@ -358,6 +360,17 @@ float G1(float angle, float alpha)
     return num / denom;
 }
 
+float calculateShadow() {
+    // given the fragment position in light coordinates, we apply the perspective divide. Usually, perspective divide is applied in an automatic way to the coordinates saved in the gl_Position variable. In this case, the vertex position in light coordinates has been saved in a separate variable, so we need to do it manually
+    vec3 lightPosOnPlane = lightFragPosition.xyz / lightFragPosition.w;
+    // after the perspective divide the values are in the range [-1,1]: we must convert them in [0,1]
+    lightPosOnPlane = lightPosOnPlane * 0.5 + 0.5;
+    float bias = 0.001;
+    lightPosOnPlane.z -= bias;
+    float shadowDepth = texture(shadowMap, lightPosOnPlane.xyz);
+    return 1 - shadowDepth;
+}
+
 //////////////////////////////////////////
 // a subroutine for the GGX model
 subroutine(ill_model)
@@ -413,11 +426,16 @@ vec3 GGX(vec3 diffuseColor) // this name is the one which is detected by the Set
         specular = (F * G2 * D) / (4.0 * NdotV * NdotL);
     }
 
+    // getting the shadow
+    float shadow = calculateShadow();
+
     // the rendering equation is:
     // integral of: BRDF * Li * (cosine angle between N and L)
     // BRDF in our case is: the sum of Lambert and GGX
     // Li is considered as equal to 1: light is white, and we have not applied attenuation. With colored lights, and with attenuation, the code must be modified and the Li factor must be multiplied to finalColor
-    return (lambert + specular) * NdotL;
+    // for now the shadow is applied to the whole color because there is no ambient component in the illumination model
+    // if in the future we add an ambient light we shouldn't multiply this component by the shadow
+    return (1 - shadow) * (lambert + specular) * NdotL;
 }
 //////////////////////////////////////////
 
@@ -435,7 +453,6 @@ vec3 sampleNormalMap(sampler2D normalMap) {
     vec3 sampledNormal = normalize(2 * color - vec3(1, 1, 1));
     mat3 TBN = getTBN();
     return normalize(TBN * sampledNormal);
-
 }
 
 subroutine(get_normal)
@@ -502,5 +519,10 @@ void main(void)
 
     // gamma correctiong the color, disabled for now
     // color = pow(color, vec3(1.0 / 2.2));
+
+    // vec3 lightPosOnPlane = lightFragPosition.xyz / lightFragPosition.w;
+    // lightPosOnPlane = lightPosOnPlane * 0.5 + 0.5;
+    // color = texture(shadowMap, lightPosOnPlane.xy).r;
+
     colorFrag = vec4(color, 1.0);
 }

@@ -25,6 +25,7 @@ public:
     MeshRenderer() {
         // the Shader Program for the objects used in the application
         shader = new Shader("09_illumination_models.vert", "10_illumination_models.frag");
+        // shader = new Shader("debug_shadowmap.vert", "debug_shadowmap.frag");
         // fragment shader subroutines
         // set the illumination model to GGX, look a the comment about subroutines
         GLuint illuminationModelIndex = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, "GGX");
@@ -94,15 +95,13 @@ public:
         texture.Activate(parallaxMapLocation);
     }
 
-    void SetShadowMap(GLuint texture) {
+    void SetShadowMap(GLuint texture, glm::mat4 lightView, glm::mat4 lightProjection) {
+        glUniformMatrix4fv(glGetUniformLocation(shader->Program, "lightView"), 1, GL_FALSE, glm::value_ptr(lightView));
+        glUniformMatrix4fv(glGetUniformLocation(shader->Program, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
         auto shadowMapLocation = glGetUniformLocation(shader->Program, "shadowMap");
-        glActiveTexture(GL_TEXTURE0 + texture);
+        glActiveTexture(GL_TEXTURE0 + texture + 2);
         glBindTexture(GL_TEXTURE_2D, texture);
-        glUniform1i(shadowMapLocation, texture);
-    }
-
-    void Delete() {
-        shader->Delete();
+        glUniform1i(shadowMapLocation, texture + 2);
     }
 
     void SetPattern(PatternType pattern) {

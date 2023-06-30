@@ -11,10 +11,6 @@ class ShadowRenderer: public ObjectRenderer {
     ShadowRenderer() {
         shader = new Shader("shadow_map.vert", "shadow_map.frag");
     }
-    
-    virtual void SetModelTrasformation(glm::mat4 modelMatrix) {
-
-    };
 
     // no texture, colors, normals or parallaxmap used for shadow maps, 
     // only depth buffer is used

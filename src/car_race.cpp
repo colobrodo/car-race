@@ -595,8 +595,8 @@ int main()
                 SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     // attach the texture to the framebuffer object
     glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
@@ -731,26 +731,28 @@ int main()
         // bulletSimulation.dynamicsWorld->stepSimulation(1.0/60.0,10);
         bulletSimulation.dynamicsWorld->stepSimulation((deltaTime < maxSecPerFrame ? deltaTime : maxSecPerFrame), 10);
 
+        // reactivate depth test
+        glEnable(GL_DEPTH_TEST);
+
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        float near_plane = 1.0f, far_plane = 7.5f;
-        glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, near_plane, far_plane);
-        glm::mat4 lightView = glm::lookAt(glm::vec3(-2.0f, 4.0f, -1.0f), 
-                                          glm::vec3( 0.0f, 0.0f,  0.0f), 
+        float near_plane = -100.0f, far_plane = 100.f;
+        glm::mat4 lightProjection = glm::ortho(-25.0f, 25.0f, -25.0f, 25.0f, near_plane, far_plane);
+        glm::mat4 lightView = glm::lookAt(renderer.illumination.lightDirection,
+                                          glm::vec3( 0.0f, 0.0f,  0.0f),
                                           glm::vec3( 0.0f, 1.0f,  0.0f)); 
 
         shadowRenderer.Activate(lightView, lightProjection);
         renderScene(shadowRenderer);
 
-        glViewport(0, 0, screenWidth, screenHeight);
         // reset the framebuffer to main buffer application
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glViewport(0, 0, screenWidth, screenHeight);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         // we "clear" the frame and z buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glEnable(GL_DEPTH_TEST);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         /// Draw: after update all the object in our scene we draw them  
@@ -758,7 +760,7 @@ int main()
         // we pass projection and view matrices to the Shader Program
         // the renderer object can also render the object on a buffer (like shadow map)
         renderer.Activate(view, projection);
-        renderer.SetShadowMap(depthMap);
+        renderer.SetShadowMap(depthMap, lightView, lightProjection);
         renderScene(renderer);
 
         // update all particles
