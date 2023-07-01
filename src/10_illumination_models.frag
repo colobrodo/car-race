@@ -72,7 +72,7 @@ uniform float shininess;
 uniform float alpha; // rugosity - 0 : smooth, 1: rough
 uniform float F0; // fresnel reflectance at normal incidence
 
-float repeat = 20.0;
+uniform float repeat = 20.0;
 
 
 ////////////////////////////////////////////////////////////////////

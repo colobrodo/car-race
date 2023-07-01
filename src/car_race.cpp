@@ -42,6 +42,7 @@ positive Z axis points "outside" the screen
 #endif
 
 #include <cmath>
+#include <tuple>
 
 #include <glad/glad.h>
 
@@ -55,6 +56,7 @@ positive Z axis points "outside" the screen
 #endif
 
 // classes developed during lab lectures to manage shaders, to load models, for FPS camera, and for physical simulation
+#include <utils/random.h>
 #include <utils/shader.h>
 #include <utils/model.h>
 #include <utils/camera.h>
@@ -109,6 +111,9 @@ glm::mat4 view, projection;
 
 // we create a camera. We pass the initial position as a parameter to the constructor. In this case, we use a "floating" camera (we pass false as last parameter)
 Camera camera(glm::vec3(0.0f, 0.0f, 9.0f), GL_FALSE);
+// constant distance from the camera and the vehicle
+glm::vec3 cameraOffset(0.f, 15.f, -25.f);
+
 
 // color of the falling objects
 glm::vec3 diffuseColor{1.0f,0.0f,0.0f};
@@ -149,6 +154,36 @@ void drawQuad() {
 
 glm::vec3 toGLM(const btVector3 &v) {
     return glm::vec3(v.getX(), v.getY(), v.getZ());
+}
+
+std::tuple<glm::vec3, glm::vec3> getAABBofPoints(std::vector<glm::vec3> points) {
+    float minX = std::numeric_limits<float>::max();
+    float maxX = std::numeric_limits<float>::lowest();
+    float minY = std::numeric_limits<float>::max();
+    float maxY = std::numeric_limits<float>::lowest();
+    float minZ = std::numeric_limits<float>::max();
+    float maxZ = std::numeric_limits<float>::lowest();
+    for (const auto& v : points)
+    {
+        minX = std::min(minX, v.x);
+        maxX = std::max(maxX, v.x);
+        minY = std::min(minY, v.y);
+        maxY = std::max(maxY, v.y);
+        minZ = std::min(minZ, v.z);
+        maxZ = std::max(maxZ, v.z);
+    }
+    return std::make_tuple(glm::vec3(minX, minY, minZ), glm::vec3(maxX, maxY, maxZ));
+}
+
+void calculateShadowMapViewFrustum(glm::mat4 view, glm::mat4 projection, glm::vec3 lightDirection, 
+                                   glm::mat4 *lightView, glm::mat4 *lightProjection) {
+    // HACK:
+    auto center = camera.Position + camera.Front * glm::length(cameraOffset);
+    *lightView = glm::lookAt(center + lightDirection,
+                            center,
+                            glm::vec3(0.0f, 1.0f, 0.0f));
+    float near_plane = -100.0f, far_plane = 100.f;
+    *lightProjection = glm::ortho(-35.0f, 35.0f, -35.0f, 35.0f, near_plane, far_plane);
 }
 
 void updateCameraPosition(Vehicle vehicle, Camera &camera, const glm::vec3 offset, float deltaTime) {
@@ -533,14 +568,14 @@ int main()
 
     // TODO: to remove, generalize to obstacle array
     // we create 25 rigid bodies for the cubes of the scene. In this case, we use BoxShape, with the same dimensions of the cubes, as collision shape of Bullet. For more complex cases, a Bounding Box of the model may have to be calculated, and its dimensions to be passed to the physics library
-    GLint num_side = 0;
+    GLint num_side = 5;
     // total number of the cubes
     GLint total_cubes = num_side*num_side;
     GLint i,j;
     // position of the cube
     glm::vec3 cube_pos;
     // dimension of the cube
-    glm::vec3 cube_size = glm::vec3(.2f, .5f, .2f);
+    glm::vec3 cube_size = glm::vec3(.4f, 1.f, .4f);
     // we set a small initial rotation for the cubes
     glm::vec3 cube_rot = glm::vec3(0.1f, 0.0f, 0.1f);
     // rigid body
@@ -553,10 +588,21 @@ int main()
         for(j = 0; j < num_side; j++ )
         {
             // position of each cube in the grid (we add 3 to x to have a bigger displacement)
-            cube_pos = glm::vec3((i - num_side)+3.0f, 1.0f, (num_side - j));
+            cube_pos = glm::vec3(3.0f + 5.f * i, 1.0f, j * 5.f);
             // we create a rigid body (in this case, a dynamic body, with mass = 2)
             cube = bulletSimulation.createRigidBody(BOX, cube_pos, cube_size, cube_rot, 2.0f, 0.3f, 0.3f);
         }
+    }
+
+    // generate grass positions
+    // TODO: instanciated rendering
+    std::vector<glm::vec3> grasses;
+    for(int t = 0; t < 500; t++) {
+        auto x = uniform_between(-1.f, 1.f) * plane_size.x,
+             y = plane_size.y,
+             z = uniform_between(-1.f, 1.f) * plane_size.z;
+        auto grassPosition = glm::vec3(x, y, z);
+        grasses.push_back(grassPosition);
     }
 
     // creating ramp
@@ -577,13 +623,8 @@ int main()
     // Texture planeTexture("../textures/Stone.jpg");
     // Texture planeNormalMap("../textures/Stone_NormalMap.jpg");
     // Texture planeDisplacementMap("../textures/Stone_DispMap.jpg");
-    Texture grassTexture("../textures/Stone.jpg");
-    Texture grassNormalMap("../textures/Stone_NormalMap.jpg");
-    Texture grassDisplacementMap("../textures/Stone_DispMap.jpg");
+    Texture grassTexture("../textures/grassBlade.jpg");
     
-    // Texture grassTexture("../textures/Grass.jpg");
-    // Texture grassNormalMap("../textures/Grass_NormalMap.jpg");
-
     // create shadow map frame buffer object
     GLuint depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
@@ -609,14 +650,12 @@ int main()
     // function for drawing the entire scene, the passed renderer should be active
     auto renderScene = [&](ObjectRenderer &objectRenderer) {
         // set texture for the plane
-        objectRenderer.SetTexture(planeTexture);
+        objectRenderer.SetTexture(planeTexture, 20.f);
         // set the normal map
         objectRenderer.SetNormalMap(planeNormalMap);
         // set the displacement texture that is used as parallax map
-        objectRenderer.SetParallaxMap(planeDisplacementMap, .01f);
+        objectRenderer.SetParallaxMap(planeDisplacementMap, -.01f);
 
-        // objectRenderer.SetTerrainTexture(planeTexture, planeNormalMap, grassTexture, grassNormalMap);
-        
         drawPlane(objectRenderer, plane_pos, plane_size);
 
         // do not use parallax map anymore but restore uv coordinate interpolation
@@ -641,9 +680,6 @@ int main()
             drawRigidBody(objectRenderer, body);
         }
     };
-
-    // constant distance from the camera and the vehicle
-    glm::vec3 cameraOffset(0.f, 15.f, -25.f);
 
     /// Imgui setup
     {
@@ -740,11 +776,8 @@ int main()
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
 
-        float near_plane = -100.0f, far_plane = 100.f;
-        glm::mat4 lightProjection = glm::ortho(-25.0f, 25.0f, -25.0f, 25.0f, near_plane, far_plane);
-        glm::mat4 lightView = glm::lookAt(renderer.illumination.lightDirection,
-                                          glm::vec3( 0.0f, 0.0f,  0.0f),
-                                          glm::vec3( 0.0f, 1.0f,  0.0f)); 
+        glm::mat4 lightProjection, lightView;
+        calculateShadowMapViewFrustum(view, projection, renderer.illumination.lightDirection, &lightView, &lightProjection);
 
         shadowRenderer.Activate(lightView, lightProjection);
         renderScene(shadowRenderer);
@@ -764,6 +797,21 @@ int main()
         renderer.Activate(view, projection);
         renderer.SetShadowMap(depthMap, lightView, lightProjection);
         renderScene(renderer);
+
+        // draw quads for grass
+        renderer.SetTexture(grassTexture);
+        glm::mat4 trasformation;
+        for(auto &grass: grasses) {
+            // draw 3 quad for each grass bush 
+            for(int k=0; k < 3; k++) {
+                trasformation = glm::mat4(1.0f);
+                // each "cutouts" is equaly rotated along the y axis
+                trasformation = glm::translate(trasformation, grass);
+                trasformation = glm::rotate(trasformation, glm::radians(360.f/3 * k), glm::vec3(0.f, 1.f, 0.f));
+                renderer.SetModelTrasformation(trasformation);
+                drawQuad();
+            }
+        }
 
         // update all particles
         emitter->Update(deltaTime);
@@ -872,6 +920,7 @@ int main()
     // when I exit from the graphics loop, it is because the application is closing
     // we delete the Shader Programs
     renderer.Delete();
+    shadowRenderer.Delete();
     particle_shader.Delete();
     postprocessing_shader.Delete();
     // we delete the data of the physical simulation

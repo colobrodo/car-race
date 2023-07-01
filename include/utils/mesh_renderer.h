@@ -74,8 +74,10 @@ public:
         glUniform3fv(color2Location, 1, glm::value_ptr(color2));
     }
 
-    void SetTexture(Texture &texture) {
+    void SetTexture(Texture &texture, float repeat=1.f) {
         SetPattern(TEXTURE);
+        auto repeatLocation = glGetUniformLocation(shader->Program, "repeat");
+        glUniform1f(repeatLocation, repeat);
         auto textureLocation = glGetUniformLocation(shader->Program, "tex1");
         texture.Activate(textureLocation);
     }

@@ -14,7 +14,7 @@ struct WheelInfo {
     float suspensionDamping = 2.3f;
     float suspensionCompression = 4.4f;
     float rollInfluence = 0.1f;  //1.0f;
-    float suspensionRestLength = 1.320f;
+    float suspensionRestLength = .8f;
 
     float radius = 0.4f;
     float width = 0.3f;

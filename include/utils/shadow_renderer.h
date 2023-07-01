@@ -16,7 +16,7 @@ class ShadowRenderer: public ObjectRenderer {
     // only depth buffer is used
     virtual void SetColor(glm::vec3 color) { };
     
-    virtual void SetTexture(Texture &texture) { };
+    virtual void SetTexture(Texture &texture, float repeat=1.f) { };
     
     virtual void SetNormalMap(Texture &texture) { };
 

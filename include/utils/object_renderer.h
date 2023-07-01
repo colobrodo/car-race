@@ -39,7 +39,7 @@ class ObjectRenderer {
 
     virtual void SetColor(glm::vec3 color) = 0;
     
-    virtual void SetTexture(Texture &texture) = 0;
+    virtual void SetTexture(Texture &texture, float repeat=1.f) = 0;
     
     virtual void SetNormalMap(Texture &texture) = 0;
 
