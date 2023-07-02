@@ -7,8 +7,13 @@
 
 #include "./random.h"
 
-struct Particle
-{
+enum SpawnShape {
+    POINT,
+    DISC,
+    RECTANGLE,
+};
+
+struct Particle {
     glm::vec3 velocity;
     glm::vec3 acceleration;
     glm::vec3 position;
@@ -55,6 +60,15 @@ public:
     float Alpha0;
     float Alpha1;
 
+    SpawnShape spawnShape = POINT;
+    union {
+        float spawnRadius;
+        struct {
+            float width;
+            float height;
+        } spawnRectSize;
+    };
+
     bool Active = true;
 
     void Update(float deltaTime) {
@@ -84,6 +98,25 @@ public:
 private:
     int Size;
 
+    inline glm::vec3 getSpawnPosition() {
+        switch (spawnShape) {
+            case POINT: return Position;
+            case DISC: {
+                auto angle = uniform_between(0, 360);
+                auto distanceFromCenter = uniform_between(0, spawnRadius);
+                float xOffset = glm::sin(glm::radians(angle)) * distanceFromCenter, 
+                    zOffset = glm::cos(glm::radians(angle)) * distanceFromCenter;
+                return Position + glm::vec3(xOffset, 0.f, zOffset);
+            }
+            case RECTANGLE: {
+                auto wOffset = uniform_between(-.5f, .5f) * spawnRectSize.width;
+                auto hOffset = uniform_between(-.5f, .5f) * spawnRectSize.height;
+                return Position + glm::vec3(wOffset, 0.f, hOffset);
+            }
+        }
+        return Position;
+    }
+
     void Spawn(Particle *particle) {
         float k = randf();
         particle->color = Color0 * k + (1 - k) * Color1;
@@ -103,7 +136,7 @@ private:
         particle->alpha = uniform_between(Alpha0, Alpha1); 
 
         // reset position to origin
-        particle->position = Position;
+        particle->position = getSpawnPosition();
 
         // set lifetime to total lifespan
         particle->lifespan = uniform_between(Lifespan0, Lifespan1); 

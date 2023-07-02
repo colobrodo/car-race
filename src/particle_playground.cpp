@@ -257,6 +257,7 @@ int main()
     auto size = 10000;
     emitter = new ParticleEmitter(size);
     {
+        
         // initialize the random variables for the emitter
         emitter->Size0     = 0.025f;
         emitter->Size1     = 0.05f;
@@ -274,6 +275,8 @@ int main()
         emitter->Alpha0    = .7f;
         emitter->Alpha1    = 1.f;
         emitter->Gravity   = glm::vec3(0.f, -1.2f, 0.f);
+        // spawn all the particle in the same point as default
+        emitter->spawnShape = POINT;
     }
 
     auto particleColors = new glm::vec4[size];
@@ -376,6 +379,10 @@ int main()
     // imgui combobox choice index (different from opengl index)
     int comboIndex = 0;
 
+    const char *spawnShapeNames[] = {"Point", "Disc", "Rectangle"};
+    const SpawnShape spawnShapes[] = {POINT, DISC, RECTANGLE};
+    int spawnShapeCombo = 0;
+
     // Rendering loop: this code is executed at each frame
     while(!glfwWindowShouldClose(window))
     {
@@ -407,6 +414,40 @@ int main()
 
             /// Options for particle system
             ImGui::Begin("Particle");
+            // spawn shape 
+            ImGui::Combo("Spawn Shape", &spawnShapeCombo, spawnShapeNames, IM_ARRAYSIZE(spawnShapeNames));
+            // we check if we have updated the spawn shape
+            auto choosenSpawnShape = spawnShapes[spawnShapeCombo];
+            if(emitter->spawnShape != choosenSpawnShape) {
+                // we have updated the spawn shape
+                // we set the default parameters read later by the widgets
+                switch (choosenSpawnShape) {
+                    case DISC:
+                        emitter->spawnRadius = 1.0f;
+                        break;
+                    case RECTANGLE:
+                        emitter->spawnRectSize.height = 0.5f;
+                        emitter->spawnRectSize.width = 2.0f;
+                        break;
+                }
+                // update the type of spawn shape with the choosen one
+                emitter->spawnShape = choosenSpawnShape;
+            }
+            // create widgets (sliders) for each parameter of the choosen spawn shape
+            // the shape is centered around the position
+            switch (choosenSpawnShape) {
+                // disc spawn radius
+                case DISC:
+                    ImGui::SliderFloat("Spawn Radius", &emitter->spawnRadius, 0.01f, 3.f);
+                    break;
+                // for rectangle height and width
+                case RECTANGLE:
+                    ImGui::SliderFloat("Spawn Height", &emitter->spawnRectSize.height, 0.01f, 3.f);
+                    ImGui::SliderFloat("Spawn Width", &emitter->spawnRectSize.width, 0.01f, 3.f);
+                    break;
+                // point no parameters, handler by ctrl + mouse drag
+            }
+            // get the rest of the parameters, mostly random variables bounds
             ImGui::Combo("Shape", &comboIndex, shapes, IM_ARRAYSIZE(shapes));
             ImGui::SeparatorText("Directions");
             ImGui::SliderFloat3("Velocity", glm::value_ptr(emitter->Velocity), -3.f, 3.f);
@@ -436,13 +477,6 @@ int main()
         // View matrix (=camera): position, view direction, camera "up" vector
         // in this example, it has been defined as a global variable (we need it in the keyboard callback function)
         view = camera.GetViewMatrix();
-        
-        // we update the physics simulation. We must pass the deltatime to be used for the update of the physical state of the scene.
-        // Bullet works with a default timestep of 60 Hz (1/60 seconds). For smaller timesteps (i.e., if the current frame is computed faster than 1/60 seconds), Bullet applies interpolation rather than actual simulation.
-        // In this example, we use deltatime from the last rendering: if it is < 1\60 sec, then we use it (thus "forcing" Bullet to apply simulation rather than interpolation), otherwise we use the default timestep (1/60 seconds) we have set above
-        // We also set the max number of substeps to consider for the simulation (=10)
-        // The "correct" values to set up the timestep depends on the characteristics and complexity of the physical simulation, the amount of time spent for the other computations (e.g., complex shading), etc.
-        // For example, this example, with limited lighting, simple materials, no texturing, works correctly even setting:
 
         // update all particles
         emitter->Update(deltaTime);
