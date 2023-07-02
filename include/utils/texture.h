@@ -11,11 +11,12 @@
 
 class Texture {
 public:
-    Texture(char *path) {
+    Texture(char *path, bool flip=false) {
         // we load the image from disk and we create an OpenGL texture
         int w, h, channels;
         unsigned char* image;
-        image = stbi_load(path, &w, &h, &channels, STBI_rgb);
+        if(flip) stbi_set_flip_vertically_on_load(true);
+        image = stbi_load(path, &w, &h, &channels, STBI_default);
 
         if (image == nullptr)
             std::cout << "Failed to load texture " << path << "!" << std::endl;
@@ -23,9 +24,9 @@ public:
         glGenTextures(1, &textureImage);
         glBindTexture(GL_TEXTURE_2D, textureImage);
         // 3 channels = RGB ; 4 channel = RGBA
-        if (channels==3)
+        if (channels == 3)
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, image);
-        else if (channels==4)
+        else if (channels == 4)
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
         glGenerateMipmap(GL_TEXTURE_2D);
         // we set how to consider UVs outside [0,1] range

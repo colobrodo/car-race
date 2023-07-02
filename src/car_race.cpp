@@ -44,6 +44,8 @@ positive Z axis points "outside" the screen
 #include <cmath>
 #include <tuple>
 
+//#define USE_GRASS
+
 #include <glad/glad.h>
 
 // GLFW library to create window and to manage I/O
@@ -65,6 +67,7 @@ positive Z axis points "outside" the screen
 #include <utils/particle.h>
 #include <utils/texture.h>
 #include <utils/mesh_renderer.h>
+#include <utils/grass_renderer.h>
 #include <utils/shadow_renderer.h>
 
 #include <imgui/imgui.h>
@@ -438,6 +441,11 @@ int main()
     // renderer for the shadow map
     ShadowRenderer shadowRenderer;
 
+    #ifdef USE_GRASS 
+    // renderer for 2D textures, objects
+    GrassRenderer grassRenderer;
+    #endif
+
     // the Shader Program for rendering the particles
     Shader particle_shader = Shader("particle.vert", "particle.frag");
     // the Shader Program used on the framebuffer, for effect on the whole screen
@@ -506,7 +514,7 @@ int main()
         modelMatrices[i] = glm::mat4(1.0f);
     }
 
-    // initializate buffers (VAO, VBO) for particle rendering
+    /// initializate buffers (VAO, VBO) for particle rendering
     // creating particle VAO/VBO, different from normal quads cause of instanced drawing
     GLuint particleVAO;
     GLuint particleVBO;
@@ -519,14 +527,12 @@ int main()
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-
     // vertex buffer object
     GLuint modelMatrixBuffer;
     glGenBuffers(1, &modelMatrixBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, modelMatrixBuffer);
     auto bufferSize = totalParticles * sizeof(glm::mat4);
     glBufferData(GL_ARRAY_BUFFER, bufferSize, &modelMatrices[0], GL_STATIC_DRAW);
-    
     // vertex attributes
     // we need to allocate space for each matrix4 trasformation, we should do it row by row
     auto vec4Size = sizeof(glm::vec4);
@@ -538,26 +544,81 @@ int main()
     glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
     glEnableVertexAttribArray(5); 
     glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
-
     // buffer for storing color particles
     GLuint particleColorBuffer;
     glGenBuffers(1, &particleColorBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, particleColorBuffer);
     auto colorBufferSize = totalParticles * sizeof(glm::vec4);
-    glBufferData(GL_ARRAY_BUFFER, bufferSize, &modelMatrices[0], GL_STATIC_DRAW);
-    
+    glBufferData(GL_ARRAY_BUFFER, bufferSize, &particleColors[0], GL_STATIC_DRAW);
     // attrib array for particles color
     glEnableVertexAttribArray(6); 
     glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, vec4Size, (void*)0);
-
+    // specify attrib divisor for each particle parameter
     glVertexAttribDivisor(2, 1);
     glVertexAttribDivisor(3, 1);
     glVertexAttribDivisor(4, 1);
     glVertexAttribDivisor(5, 1);
-
     glVertexAttribDivisor(6, 1);
-
+    // rebind to standard vertex array
     glBindVertexArray(0);
+
+    #ifdef USE_GRASS 
+    // create grass bushes with instanciated rendering
+    // generate grass positions
+    constexpr int N_GRASS_BUSH = 5000;
+    auto grasses = new glm::mat4[N_GRASS_BUSH * 3];
+    glm::mat4 trasformation;
+    for(int t = 0; t < N_GRASS_BUSH; t++) {
+        auto x = uniform_between(-1.f, 1.f) * plane_size.x,
+             y = plane_size.y,
+             z = uniform_between(-1.f, 1.f) * plane_size.z;
+        auto grass = glm::vec3(x, y, z);
+        // draw 3 quad for each grass bush 
+        for(int k=0; k < 3; k++) {
+            auto matrixIndex = t * 3 + k;            
+            trasformation = glm::mat4(1.0f);
+            // each "cutouts" is equaly rotated along the y axis
+            trasformation = glm::translate(trasformation, grass);
+            trasformation = glm::rotate(trasformation, glm::radians(360.f/3 * k), glm::vec3(0.f, 1.f, 0.f));
+            grasses[matrixIndex] = trasformation;
+        }
+    }
+    // initialize buffer VAO and VBO for grass rendering, similar to particle rendering
+    GLuint grassVAO;
+    GLuint grassVBO;
+    glGenVertexArrays(1, &grassVAO);
+    glGenBuffers(1, &grassVBO);
+    glBindVertexArray(grassVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, grassVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    // vertex buffer object
+    GLuint grassModelMatrixBuffer;
+    glGenBuffers(1, &grassModelMatrixBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, grassModelMatrixBuffer);
+    auto grassBufferSize = N_GRASS_BUSH * 3 * sizeof(glm::mat4);
+    glBufferData(GL_ARRAY_BUFFER, grassBufferSize, &grasses[0], GL_STATIC_DRAW);
+    // vertex attributes
+    // we need to allocate space for each matrix4 trasformation, we should do it row by row
+    glEnableVertexAttribArray(2); 
+    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
+    glEnableVertexAttribArray(3); 
+    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(1 * vec4Size));
+    glEnableVertexAttribArray(4); 
+    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
+    glEnableVertexAttribArray(5); 
+    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
+    // specify attrib divisor for each particle parameter
+    glVertexAttribDivisor(2, 1);
+    glVertexAttribDivisor(3, 1);
+    glVertexAttribDivisor(4, 1);
+    glVertexAttribDivisor(5, 1);
+    // rebind to standard vertex array
+    glBindVertexArray(0);
+    #endif
 
 
     /// create vehicle
@@ -579,7 +640,7 @@ int main()
     // we set a small initial rotation for the cubes
     glm::vec3 cube_rot = glm::vec3(0.1f, 0.0f, 0.1f);
     // rigid body
-    btRigidBody* cube;
+    btRigidBody *cube;
 
     int cubes_start_i = bulletSimulation.dynamicsWorld->getCollisionObjectArray().size();
     // we create a 5x5 grid of rigid bodies
@@ -592,17 +653,6 @@ int main()
             // we create a rigid body (in this case, a dynamic body, with mass = 2)
             cube = bulletSimulation.createRigidBody(BOX, cube_pos, cube_size, cube_rot, 2.0f, 0.3f, 0.3f);
         }
-    }
-
-    // generate grass positions
-    // TODO: instanciated rendering
-    std::vector<glm::vec3> grasses;
-    for(int t = 0; t < 500; t++) {
-        auto x = uniform_between(-1.f, 1.f) * plane_size.x,
-             y = plane_size.y,
-             z = uniform_between(-1.f, 1.f) * plane_size.z;
-        auto grassPosition = glm::vec3(x, y, z);
-        grasses.push_back(grassPosition);
     }
 
     // creating ramp
@@ -623,7 +673,7 @@ int main()
     // Texture planeTexture("../textures/Stone.jpg");
     // Texture planeNormalMap("../textures/Stone_NormalMap.jpg");
     // Texture planeDisplacementMap("../textures/Stone_DispMap.jpg");
-    Texture grassTexture("../textures/grassBlade.jpg");
+    Texture grassTexture("../textures/grassBlade.png", true);
     
     // create shadow map frame buffer object
     GLuint depthMapFBO;
@@ -698,8 +748,9 @@ int main()
     }
 
     // enable blending for semitransparent particle
+    glEnable(GL_ALPHA_TEST);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Rendering loop: this code is executed at each frame
     while(!glfwWindowShouldClose(window))
@@ -798,20 +849,15 @@ int main()
         renderer.SetShadowMap(depthMap, lightView, lightProjection);
         renderScene(renderer);
 
-        // draw quads for grass
-        renderer.SetTexture(grassTexture);
-        glm::mat4 trasformation;
-        for(auto &grass: grasses) {
-            // draw 3 quad for each grass bush 
-            for(int k=0; k < 3; k++) {
-                trasformation = glm::mat4(1.0f);
-                // each "cutouts" is equaly rotated along the y axis
-                trasformation = glm::translate(trasformation, grass);
-                trasformation = glm::rotate(trasformation, glm::radians(360.f/3 * k), glm::vec3(0.f, 1.f, 0.f));
-                renderer.SetModelTrasformation(trasformation);
-                drawQuad();
-            }
-        }
+        #ifdef USE_GRASS 
+        // draw quads for grass with instanciated rendering
+        grassRenderer.Activate(view, projection);
+        grassRenderer.SetTexture(grassTexture);
+        grassRenderer.SetShadowMap(depthMap, lightView, lightProjection);
+        glBindVertexArray(grassVAO);
+        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, N_GRASS_BUSH * 3);
+        glBindVertexArray(0);
+        #endif
 
         // update all particles
         emitter->Update(deltaTime);
@@ -921,6 +967,9 @@ int main()
     // we delete the Shader Programs
     renderer.Delete();
     shadowRenderer.Delete();
+    #ifdef USE_GRASS
+    grassRenderer.Delete();
+    #endif
     particle_shader.Delete();
     postprocessing_shader.Delete();
     // we delete the data of the physical simulation
