@@ -65,7 +65,7 @@ positive Z axis points "outside" the screen
 #include <utils/physics.h>
 #include <utils/vehicle.h>
 #include <utils/particle.h>
-#include <utils/texture.h>
+#include <utils/image_texture.h>
 #include <utils/mesh_renderer.h>
 #include <utils/particle_renderer.h>
 #include <utils/grass_renderer.h>
@@ -601,13 +601,13 @@ int main()
     // Model and Normal transformation matrices for the objects in the scene: we set to identity
     glm::mat4 objModelMatrix = glm::mat4(1.0f);
     // textures for plane
-    Texture planeTexture("../textures/DirtFloor.jpg");
-    Texture planeNormalMap("../textures/DirtFloor_NormalMap.png");
-    Texture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
-    // Texture planeTexture("../textures/Stone.jpg");
-    // Texture planeNormalMap("../textures/Stone_NormalMap.jpg");
-    // Texture planeDisplacementMap("../textures/Stone_DispMap.jpg");
-    Texture grassTexture("../textures/grassBlade.png", true);
+    ImageTexture planeTexture("../textures/DirtFloor.jpg");
+    ImageTexture planeNormalMap("../textures/DirtFloor_NormalMap.png");
+    ImageTexture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
+    // ImageTexture planeTexture("../textures/Stone.jpg");
+    // ImageTexture planeNormalMap("../textures/Stone_NormalMap.jpg");
+    // ImageTexture planeDisplacementMap("../textures/Stone_DispMap.jpg");
+    ImageTexture grassTexture("../textures/grassBlade.png", true);
     
     // create shadow map frame buffer object
     GLuint depthMapFBO;
