@@ -42,7 +42,6 @@ positive Z axis points "outside" the screen
 #endif
 
 #include <cmath>
-#include <tuple>
 
 //#define USE_GRASS
 
@@ -65,6 +64,7 @@ positive Z axis points "outside" the screen
 #include <utils/physics.h>
 #include <utils/vehicle.h>
 #include <utils/particle.h>
+#include <utils/shadowmap_texture.h>
 #include <utils/image_texture.h>
 #include <utils/mesh_renderer.h>
 #include <utils/particle_renderer.h>
@@ -146,25 +146,6 @@ void drawQuad() {
 
 glm::vec3 toGLM(const btVector3 &v) {
     return glm::vec3(v.getX(), v.getY(), v.getZ());
-}
-
-std::tuple<glm::vec3, glm::vec3> getAABBofPoints(std::vector<glm::vec3> points) {
-    float minX = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::lowest();
-    float minY = std::numeric_limits<float>::max();
-    float maxY = std::numeric_limits<float>::lowest();
-    float minZ = std::numeric_limits<float>::max();
-    float maxZ = std::numeric_limits<float>::lowest();
-    for (const auto& v : points)
-    {
-        minX = std::min(minX, v.x);
-        maxX = std::max(maxX, v.x);
-        minY = std::min(minY, v.y);
-        maxY = std::max(maxY, v.y);
-        minZ = std::min(minZ, v.z);
-        maxZ = std::max(maxZ, v.z);
-    }
-    return std::make_tuple(glm::vec3(minX, minY, minZ), glm::vec3(maxX, maxY, maxZ));
 }
 
 void calculateShadowMapViewFrustum(glm::mat4 view, glm::mat4 projection, glm::vec3 lightDirection, 
@@ -613,23 +594,10 @@ int main()
     GLuint depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create texture for shadow map
-    GLuint depthMap;
-    glGenTextures(1, &depthMap);
-    glBindTexture(GL_TEXTURE_2D, depthMap);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, 
-                SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER); 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    ShadowMapTexture shadowMap(SHADOW_WIDTH, SHADOW_HEIGHT);
+
     // attach the texture to the framebuffer object
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
-    glDrawBuffer(GL_NONE);
-    glReadBuffer(GL_NONE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0); 
+    shadowMap.AttachToFrameBuffer(depthMapFBO);
 
     // function for drawing the entire scene, the passed renderer should be active
     auto renderScene = [&](ObjectRenderer &objectRenderer) {
@@ -780,7 +748,7 @@ int main()
         // we pass projection and view matrices to the Shader Program
         // the renderer object can also render the object on a buffer (like shadow map)
         renderer.Activate(view, projection);
-        renderer.SetShadowMap(depthMap, lightView, lightProjection);
+        renderer.SetShadowMap(shadowMap, lightView, lightProjection);
         renderScene(renderer);
 
         #ifdef USE_GRASS 
