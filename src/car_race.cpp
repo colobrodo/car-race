@@ -67,6 +67,7 @@ positive Z axis points "outside" the screen
 #include <utils/particle.h>
 #include <utils/texture.h>
 #include <utils/mesh_renderer.h>
+#include <utils/particle_renderer.h>
 #include <utils/grass_renderer.h>
 #include <utils/shadow_renderer.h>
 
@@ -137,18 +138,6 @@ Model *sphereModel;
 Model *cylinderModel;
 Model *carModel;
 
-
-// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates
-float quadVertices[] = { 
-    // positions   // texCoords
-    -1.f, 1.0f,  0.0f, 1.0f,
-    -1.f, -1.f,  0.0f, 0.0f,
-    1.f,  -1.f,  1.0f, 0.0f,
-
-    -1.f, 1.0f,  0.0f, 1.0f,
-    1.f,  -1.f,  1.0f, 0.0f,
-    1.f,  1.0f,  1.0f, 1.0f
-};
 
 void drawQuad() {
     glBindVertexArray(quadVAO);
@@ -446,8 +435,6 @@ int main()
     GrassRenderer grassRenderer;
     #endif
 
-    // the Shader Program for rendering the particles
-    Shader particle_shader = Shader("particle.vert", "particle.frag");
     // the Shader Program used on the framebuffer, for effect on the whole screen
     Shader postprocessing_shader = Shader("postprocessing.vert", "postprocessing.frag");
 
@@ -504,63 +491,10 @@ int main()
 
     emitter->Active = false;
 
+    ParticleRenderer particleRenderer(*emitter);
+
     // set the type of the particle 
-    GLuint shapeSubroutine = glGetSubroutineIndex(particle_shader.Program, GL_FRAGMENT_SHADER, "Circle");
-    glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 1, &shapeSubroutine);
-
-    auto particleColors = new glm::vec4[totalParticles];
-    auto modelMatrices = new glm::mat4[totalParticles];
-    for(int i = 0; i < totalParticles; i++) {
-        modelMatrices[i] = glm::mat4(1.0f);
-    }
-
-    /// initializate buffers (VAO, VBO) for particle rendering
-    // creating particle VAO/VBO, different from normal quads cause of instanced drawing
-    GLuint particleVAO;
-    GLuint particleVBO;
-    glGenVertexArrays(1, &particleVAO);
-    glGenBuffers(1, &particleVBO);
-    glBindVertexArray(particleVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, particleVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    // vertex buffer object
-    GLuint modelMatrixBuffer;
-    glGenBuffers(1, &modelMatrixBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, modelMatrixBuffer);
-    auto bufferSize = totalParticles * sizeof(glm::mat4);
-    glBufferData(GL_ARRAY_BUFFER, bufferSize, &modelMatrices[0], GL_STATIC_DRAW);
-    // vertex attributes
-    // we need to allocate space for each matrix4 trasformation, we should do it row by row
-    auto vec4Size = sizeof(glm::vec4);
-    glEnableVertexAttribArray(2); 
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
-    glEnableVertexAttribArray(3); 
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(1 * vec4Size));
-    glEnableVertexAttribArray(4); 
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
-    glEnableVertexAttribArray(5); 
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
-    // buffer for storing color particles
-    GLuint particleColorBuffer;
-    glGenBuffers(1, &particleColorBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, particleColorBuffer);
-    auto colorBufferSize = totalParticles * sizeof(glm::vec4);
-    glBufferData(GL_ARRAY_BUFFER, bufferSize, &particleColors[0], GL_STATIC_DRAW);
-    // attrib array for particles color
-    glEnableVertexAttribArray(6); 
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, vec4Size, (void*)0);
-    // specify attrib divisor for each particle parameter
-    glVertexAttribDivisor(2, 1);
-    glVertexAttribDivisor(3, 1);
-    glVertexAttribDivisor(4, 1);
-    glVertexAttribDivisor(5, 1);
-    glVertexAttribDivisor(6, 1);
-    // rebind to standard vertex array
-    glBindVertexArray(0);
+    particleRenderer.SetParticleShape(CIRCLE);
 
     #ifdef USE_GRASS 
     // create grass bushes with instanciated rendering
@@ -863,38 +797,9 @@ int main()
         emitter->Update(deltaTime);
 
         if(emitter->Active) {
-            /// draw particles TODO: create a ParticleRenderer
-            // initialize the particle shader
-            particle_shader.Use();
-            // we pass projection and view matrices to the particle Shader Program
-            glUniformMatrix4fv(glGetUniformLocation(particle_shader.Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
-            glUniformMatrix4fv(glGetUniformLocation(particle_shader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
-            // calculate all colors andf model matrix for each particle
-            for(int i = 0; i < emitter->size(); i++) {
-                auto particle = emitter->particles[i];
-                // setting the color of the particle
-                glm::vec4 color(particle.color, particle.alpha);
-                particleColors[i] = color;
-
-                // scaling the particle according to his variable
-                auto particleSize = particle.scale * particle.size;
-                auto transform = glm::translate(glm::mat4(1.f), particle.position);
-
-                objModelMatrix = glm::rotate(glm::mat4(1.f), particle.rotation, glm::vec3(0, 1, 0));
-                objModelMatrix = glm::scale(objModelMatrix, particleSize);
-                // we reset to identity at each frame
-                modelMatrices[i] = transform * objModelMatrix;
-            }
-
-            // write each particle information (model-matrix and color) in the buffer
-            glBindBuffer(GL_ARRAY_BUFFER, modelMatrixBuffer);
-            glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, &modelMatrices[0]);
-            glBindBuffer(GL_ARRAY_BUFFER, particleColorBuffer);
-            glBufferSubData(GL_ARRAY_BUFFER, 0, colorBufferSize, &particleColors[0]);
-            // draw all particles in one single call
-            glBindVertexArray(particleVAO);
-            glDrawArraysInstanced(GL_TRIANGLES, 0, 6, totalParticles);
-            glBindVertexArray(0);
+            particleRenderer.Activate(view, projection);
+            /// draw particles using the particle renderer
+            particleRenderer.Draw();
         }
 
         {
@@ -964,13 +869,13 @@ int main()
     ImGui::DestroyContext();
 
     // when I exit from the graphics loop, it is because the application is closing
-    // we delete the Shader Programs
+    // we delete the Shader Programs and renderers
     renderer.Delete();
     shadowRenderer.Delete();
+    particleRenderer.Delete();
     #ifdef USE_GRASS
     grassRenderer.Delete();
     #endif
-    particle_shader.Delete();
     postprocessing_shader.Delete();
     // we delete the data of the physical simulation
     bulletSimulation.Clear();

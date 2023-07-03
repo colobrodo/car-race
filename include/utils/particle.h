@@ -1,9 +1,8 @@
 #pragma once
 
 #include <cmath>
+
 #include <glm/glm.hpp>
-// TODO: remove later
-#include <vector>
 
 #include "./random.h"
 

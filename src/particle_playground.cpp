@@ -59,6 +59,7 @@ positive Z axis points "outside" the screen
 #include <utils/model.h>
 #include <utils/camera.h>
 #include <utils/particle.h>
+#include <utils/particle_renderer.h>
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_impl_glfw.h>
@@ -133,18 +134,6 @@ Model *cubeModel;
 Model *sphereModel;
 Model *cylinderModel;
 
-
-// vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates
-float quadVertices[] = { 
-    // positions   // texCoords
-    -1.f, 1.0f,  0.0f, 1.0f,
-    -1.f, -1.f,  0.0f, 0.0f,
-    1.f,  -1.f,  1.0f, 0.0f,
-
-    -1.f, 1.0f,  0.0f, 1.0f,
-    1.f,  -1.f,  1.0f, 0.0f,
-    1.f,  1.0f,  1.0f, 1.0f
-};
 
 void drawQuad() {
     glBindVertexArray(quadVAO);
@@ -228,9 +217,6 @@ int main()
     //the "clear" color for the frame buffer
     glClearColor(0.26f, 0.46f, 0.98f, 1.0f);
 
-
-    // the Shader Program for rendering the particles
-    Shader particle_shader = Shader("particle.vert", "particle.frag");
     // the Shader Program used on the framebuffer, for effect on the whole screen
     Shader postprocessing_shader = Shader("postprocessing.vert", "postprocessing.frag");
 
@@ -279,66 +265,7 @@ int main()
         emitter->spawnShape = POINT;
     }
 
-    auto particleColors = new glm::vec4[size];
-    auto modelMatrices = new glm::mat4[size];
-    for(int i = 0; i < size; i++) {
-        modelMatrices[i] = glm::mat4(1.0f);
-    }
-
-    // creating particle VAO/VBO, different from normal quads cause of instancing
-    GLuint particleVAO;
-    GLuint particleVBO;
-    glGenVertexArrays(1, &particleVAO);
-    glGenBuffers(1, &particleVBO);
-    glBindVertexArray(particleVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, particleVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-
-    // vertex buffer object
-    GLuint modelMatrixBuffer;
-    glGenBuffers(1, &modelMatrixBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, modelMatrixBuffer);
-    auto bufferSize = size * sizeof(glm::mat4);
-    glBufferData(GL_ARRAY_BUFFER, bufferSize, &modelMatrices[0], GL_STATIC_DRAW);
-    
-    // vertex attributes
-    // we need to allocate space for each matrix4 trasformation, we should do it row by row
-    auto vec4Size = sizeof(glm::vec4);
-    glEnableVertexAttribArray(2); 
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
-    glEnableVertexAttribArray(3); 
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(1 * vec4Size));
-    glEnableVertexAttribArray(4); 
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
-    glEnableVertexAttribArray(5); 
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
-
-    // buffer for storing color particles
-    GLuint particleColorBuffer;
-    glGenBuffers(1, &particleColorBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, particleColorBuffer);
-    auto colorBufferSize = size * sizeof(glm::vec4);
-    glBufferData(GL_ARRAY_BUFFER, bufferSize, &modelMatrices[0], GL_STATIC_DRAW);
-    
-    // attrib array for particles color
-    glEnableVertexAttribArray(6); 
-    glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, vec4Size, (void*)0);
-
-    glVertexAttribDivisor(2, 1);
-    glVertexAttribDivisor(3, 1);
-    glVertexAttribDivisor(4, 1);
-    glVertexAttribDivisor(5, 1);
-
-    glVertexAttribDivisor(6, 1);
-
-    glBindVertexArray(0);
-
-
-    GLint i,j;
+    ParticleRenderer particleRenderer(*emitter);
 
 
     // we set the maximum delta time for the update of the physical simulation
@@ -346,9 +273,6 @@ int main()
 
     // Projection matrix: FOV angle, aspect ratio, near and far planes
     projection = glm::perspective(45.0f, (float)screenWidth/(float)screenHeight, 0.1f, 10000.0f);
-
-    // Model transformation matrix for the objects in the scene: we set to identity
-    glm::mat4 objModelMatrix = glm::mat4(1.0f);
 
     /// Imgui setup
     {
@@ -370,12 +294,11 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    GLuint circleShapeIndex = glGetSubroutineIndex(particle_shader.Program, GL_FRAGMENT_SHADER, "Circle");
-    GLuint squareShapeIndex = glGetSubroutineIndex(particle_shader.Program, GL_FRAGMENT_SHADER, "Square");
+
     // shape names used in combobox
     const char *shapes[] = {"Circle", "Square"};
     // map array used to map combo indexes to subroutine indexes  
-    const GLuint subroutineIndexes[] = {circleShapeIndex, squareShapeIndex};
+    const ParticleShape particleShape[] = {CIRCLE, SQUARE};
     // imgui combobox choice index (different from opengl index)
     int comboIndex = 0;
 
@@ -483,40 +406,12 @@ int main()
 
         /// draw particles 
         // initialize the particle shader
-        particle_shader.Use();
+        particleRenderer.Activate(view, projection);
         // set the subroutine to choose the particle shape based on combobox choice
-        glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 1, &subroutineIndexes[comboIndex]);
+        particleRenderer.SetParticleShape(particleShape[comboIndex]);
 
-        // we pass projection and view matrices to the particle Shader Program
-        glUniformMatrix4fv(glGetUniformLocation(particle_shader.Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(particle_shader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
-        
-        // for now draw all the particles in a fixed point, later read the spawn point from the particle emitter
-        for(int i = 0; i < emitter->size(); i++) {
-            auto particle = emitter->particles[i];
-            // setting the color of the particle
-            glm::vec4 color(particle.color, particle.alpha);
-            particleColors[i] = color;
-
-            // scaling the particle according to his variable
-            auto particleSize = particle.scale * particle.size;
-            auto transform = glm::translate(glm::mat4(1.f), particle.position);
-
-            objModelMatrix = glm::rotate(glm::mat4(1.f), particle.rotation, glm::vec3(0, 1, 0));
-            objModelMatrix = glm::scale(objModelMatrix, particleSize);
-            // we reset to identity at each frame
-            modelMatrices[i] = transform * objModelMatrix;
-        }
-
-        // write each particle information (model-matrix and color) in the buffer
-        glBindBuffer(GL_ARRAY_BUFFER, modelMatrixBuffer);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, bufferSize, &modelMatrices[0]);
-        glBindBuffer(GL_ARRAY_BUFFER, particleColorBuffer);
-        glBufferSubData(GL_ARRAY_BUFFER, 0, colorBufferSize, &particleColors[0]);
-        // draw all particles in one single call
-        glBindVertexArray(particleVAO);
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, size);
-        glBindVertexArray(0);
+        // spawn all the particle all over the particle emitter
+        particleRenderer.Draw();
 
 
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -543,8 +438,8 @@ int main()
     ImGui::DestroyContext();
 
     // when I exit from the graphics loop, it is because the application is closing
-    // we delete the Shader Programs
-    particle_shader.Delete();
+    // we delete the Shader Programs and the renderers
+    particleRenderer.Delete();
     postprocessing_shader.Delete();
 
     delete cubeModel;
