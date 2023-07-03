@@ -40,22 +40,6 @@ public:
         UpdateIlluminationModel();
     }
 
-    void SetTerrainTexture(Texture &dirtTexture, Texture &dirtNormalMap,
-                           Texture &grassTexture, Texture &grassNormalMap) {
-        // two texture with normal map interpolated in a noise pattern
-        // not accessible from the extern
-        setPatternSubroutine("InterpolatedTextures");
-        auto textureLocation = glGetUniformLocation(shader->Program, "tex1");
-        dirtTexture.Activate(textureLocation);
-        textureLocation = glGetUniformLocation(shader->Program, "tex2");
-        grassTexture.Activate(textureLocation);
-        setNormalSubroutine("InterpolatedNormalMaps");
-        auto normalMapLocation = glGetUniformLocation(shader->Program, "normalMap1");
-        dirtNormalMap.Activate(normalMapLocation);
-        normalMapLocation = glGetUniformLocation(shader->Program, "normalMap2");
-        grassNormalMap.Activate(normalMapLocation);
-    }
-
     void SetColor(glm::vec3 color) {
         // restore the pattern in the shader to fill with single color
         SetPattern(COLOR);
