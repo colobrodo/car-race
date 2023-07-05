@@ -8,7 +8,6 @@ uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 
-
 void main() {
     UV_coord = uv;
     gl_Position = vec4(position, 1.0);

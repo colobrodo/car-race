@@ -1,7 +1,8 @@
 #version 410 core
 layout(quads, fractional_odd_spacing, ccw) in;
 
-uniform sampler2D heightMap;
+uniform sampler2D tex;
+
 uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
@@ -136,9 +137,10 @@ void main()
     interp_UV = (t1 - t0) * v + t0;
 
     // lookup texel at patch coordinate for height and scale + shift as desired
-    // Height = texture(heightMap, interp_UV).y * 64.0 - 16.0;
-    float frequency = 3;
-    Height = snoise(interp_UV.xyy * frequency) * 2;
+    Height = texture(tex, interp_UV).y * 2;
+    
+    // float frequency = 3;
+    // Height = snoise(interp_UV.xyy * frequency) * 2;
 
     // retrieve control point position coordinates
     vec4 p00 = gl_in[0].gl_Position;

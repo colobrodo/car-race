@@ -451,7 +451,7 @@ int main()
     // we will use the cube mesh to simulate the plane, because we need some "height" in the mesh
     // in order to make it work with the physics simulation
     glm::vec3 plane_pos = glm::vec3(0.0f, -1.0f, 0.0f);
-    glm::vec3 plane_size = glm::vec3(200.0f, 0.1f, 200.0f);
+    glm::vec3 plane_size = glm::vec3(400.0f, 0.1f, 400.0f);
     glm::vec3 plane_rot = glm::vec3(0.0f, 0.0f, 0.0f);
 
     // we create a rigid body for the plane. In this case, it is static, so we pass mass = 0;
@@ -601,6 +601,7 @@ int main()
     // ImageTexture planeDisplacementMap("../textures/Stone_DispMap.jpg");
     ImageTexture grassTexture("../textures/grassBlade.png", true);
     SkyboxTexture skybox("../textures/skyboxs/default/");
+    ImageTexture heightmap("../textures/heightmap.png");
     
     // create shadow map frame buffer object
     GLuint depthMapFBO;
@@ -834,6 +835,8 @@ int main()
         glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
 
         // world transformation
+        auto textureLocation = glGetUniformLocation(heightmapShader.Program, "tex");
+        heightmap.Activate(textureLocation);
         glm::mat4 model = glm::mat4(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(model));
 
