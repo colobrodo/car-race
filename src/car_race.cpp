@@ -118,7 +118,7 @@ glm::mat4 view, projection;
 // we create a camera. We pass the initial position as a parameter to the constructor. In this case, we use a "floating" camera (we pass false as last parameter)
 Camera camera(glm::vec3(0.0f, 0.0f, 9.0f), GL_FALSE);
 // constant distance from the camera and the vehicle
-glm::vec3 cameraOffset(0.f, 15.f, -25.f);
+glm::vec3 cameraOffset(0.f, 10.f, -25.f);
 
 
 // color of the falling objects
@@ -711,10 +711,10 @@ int main()
     
         // steering
         if (keys[GLFW_KEY_RIGHT]) {
-            vehicle.SteerRight();
+            vehicle.SteerRight(deltaTime);
         } 
         if (keys[GLFW_KEY_LEFT]) {
-            vehicle.SteerLeft();
+            vehicle.SteerLeft(deltaTime);
         }
 
         vehicle.Update(deltaTime);
