@@ -94,13 +94,13 @@ public:
         EngineForce = -maxEngineForce; 
     }
 
-    void SteerLeft() {
-        Steering += steeringIncrement;
+    void SteerLeft(float deltaTime) {
+        Steering += steeringIncrement * deltaTime;
         isSteering = true;
     }
 
-    void SteerRight() {
-        Steering -= steeringIncrement;
+    void SteerRight(float deltaTime) {
+        Steering -= steeringIncrement * deltaTime;
         isSteering = true;
     }
 
@@ -192,7 +192,7 @@ public:
 private:
     btVector3 chassisBox; 
     float shootTimer = 0.f;
-    const float steeringIncrement = 0.02f;
+    const float steeringIncrement = 4.f;
     const float steeringClamp = 0.5f;
     bool isSteering;
     btRaycastVehicle vehicle;
