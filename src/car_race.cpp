@@ -58,15 +58,21 @@ positive Z axis points "outside" the screen
 
 // classes developed during lab lectures to manage shaders, to load models, for FPS camera, and for physical simulation
 #include <utils/random.h>
+
 #include <utils/shader.h>
+#include <utils/tesselation_shader.h>
+
 #include <utils/model.h>
 #include <utils/camera.h>
 #include <utils/physics.h>
 #include <utils/vehicle.h>
+
 #include <utils/particle.h>
+
 #include <utils/shadowmap_texture.h>
 #include <utils/skybox_texture.h>
 #include <utils/image_texture.h>
+
 #include <utils/mesh_renderer.h>
 #include <utils/particle_renderer.h>
 #include <utils/skybox_renderer.h>
@@ -639,6 +645,63 @@ int main()
         }
     };
 
+    // heightmap
+    TesselationShader heightmapShader("heightmap.vert", "heightmap.frag", "heightmap.tcs", "heightmap.tes"); 
+    std::vector<float> vertices;
+
+    unsigned rez = 20;
+    auto w = 50, h = 50;
+    for(unsigned i = 0; i <= rez-1; i++)
+    {
+        for(unsigned j = 0; j <= rez-1; j++)
+        {
+            vertices.push_back(-w/2.0f + w*i/(float)rez); // v.x
+            vertices.push_back(0.0f); // v.y
+            vertices.push_back(-h/2.0f + h*j/(float)rez); // v.z
+            vertices.push_back(i / (float)rez); // u
+            vertices.push_back(j / (float)rez); // v
+
+            vertices.push_back(-w/2.0f + w*(i+1)/(float)rez); // v.x
+            vertices.push_back(0.0f); // v.y
+            vertices.push_back(-h/2.0f + h*j/(float)rez); // v.z
+            vertices.push_back((i+1) / (float)rez); // u
+            vertices.push_back(j / (float)rez); // v
+
+            vertices.push_back(-w/2.0f + w*i/(float)rez); // v.x
+            vertices.push_back(0.0f); // v.y
+            vertices.push_back(-h/2.0f + h*(j+1)/(float)rez); // v.z
+            vertices.push_back(i / (float)rez); // u
+            vertices.push_back((j+1) / (float)rez); // v
+
+            vertices.push_back(-w/2.0f + w*(i+1)/(float)rez); // v.x
+            vertices.push_back(0.0f); // v.y
+            vertices.push_back(-h/2.0f + h*(j+1)/(float)rez); // v.z
+            vertices.push_back((i+1) / (float)rez); // u
+            vertices.push_back((j+1) / (float)rez); // v
+        }
+    }
+
+    // first, configure the cube's VAO (and terrainVBO)
+    unsigned int terrainVAO, terrainVBO;
+    glGenVertexArrays(1, &terrainVAO);
+    glBindVertexArray(terrainVAO);
+
+    glGenBuffers(1, &terrainVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
+
+    // position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    // texCoord attribute
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(sizeof(float) * 3));
+    glEnableVertexAttribArray(1);
+
+    // cause we are drawing quads
+    constexpr int NUM_PATCH_POINTS = 4;
+    glPatchParameteri(GL_PATCH_VERTICES, NUM_PATCH_POINTS);
+
+
     /// Imgui setup
     {
         IMGUI_CHECKVERSION();
@@ -755,7 +818,6 @@ int main()
         else
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-
         /// Draw: after update all the object in our scene we draw them  
         // We "install" the selected Shader Program as part of the current rendering process
         // we pass projection and view matrices to the Shader Program
@@ -763,6 +825,20 @@ int main()
         renderer.Activate(view, projection);
         renderer.SetShadowMap(shadowMap, lightView, lightProjection);
         renderScene(renderer);
+
+        // be sure to activate shader when setting uniforms/drawing objects
+        heightmapShader.Use();
+
+        // view/projection transformations
+        glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
+
+        // world transformation
+        glm::mat4 model = glm::mat4(1.0f);
+        glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(model));
+
+        glBindVertexArray(terrainVAO);
+        glDrawArrays(GL_PATCHES, 0, NUM_PATCH_POINTS * rez * rez);
 
         #ifdef USE_GRASS 
         // draw quads for grass with instanciated rendering

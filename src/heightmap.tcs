@@ -1,0 +1,27 @@
+# version 410 core
+// tesselation control shader
+
+layout(vertices=4) out;
+
+uniform mat4 modelMatrix;
+uniform mat4 viewMatrix;
+
+in vec2 UV_coord[];
+out vec2 texCoords[];
+
+void main()
+{
+    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+    texCoords[gl_InvocationID] = UV_coord[gl_InvocationID];
+
+    // first invocation controls tessellation levels for the entire patch
+    if (gl_InvocationID == 0) {
+        gl_TessLevelOuter[0] = 16;
+        gl_TessLevelOuter[1] = 16;
+        gl_TessLevelOuter[2] = 16;
+        gl_TessLevelOuter[3] = 16;
+
+        gl_TessLevelInner[0] = 16;
+        gl_TessLevelInner[1] = 16;
+    }
+}
