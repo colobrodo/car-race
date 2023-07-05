@@ -741,7 +741,13 @@ int main()
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         // we "clear" the frame and z buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        // we set the rendering mode
+        if (wireframe)
+            // Draw in wireframe
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        else
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
 
         /// Draw: after update all the object in our scene we draw them  
         // We "install" the selected Shader Program as part of the current rendering process
@@ -760,6 +766,10 @@ int main()
         glDrawArraysInstanced(GL_TRIANGLES, 0, 6, N_GRASS_BUSH * 3);
         glBindVertexArray(0);
         #endif
+
+        // for particle and backbuffer we always reset the wireframe to fill
+        // (otherwise we don't see anything)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         // update all particles
         emitter->Update(deltaTime);
@@ -869,7 +879,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 
     // if 0 is pressed, we activate/deactivate wireframe rendering of models
     if(key == GLFW_KEY_0 && action == GLFW_PRESS)
-        wireframe=!wireframe;
+        wireframe = !wireframe;
     
     // we keep trace of the pressed keys
     // with this method, we can manage 2 keys pressed at the same time:
