@@ -69,7 +69,7 @@ positive Z axis points "outside" the screen
 
 #include <utils/particle.h>
 
-#include <utils/shadowmap_texture.h>
+#include <utils/depth_texture.h>
 #include <utils/skybox_texture.h>
 #include <utils/image_texture.h>
 
@@ -607,8 +607,8 @@ int main()
     GLuint depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create texture for shadow map
-    ShadowMapTexture shadowMap(SHADOW_WIDTH, SHADOW_HEIGHT);
-
+    DepthTexture shadowMap(SHADOW_WIDTH, SHADOW_HEIGHT);
+    
     // attach the texture to the framebuffer object
     shadowMap.AttachToFrameBuffer(depthMapFBO);
 

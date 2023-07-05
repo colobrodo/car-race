@@ -8,9 +8,9 @@
 
 #include <iostream>
 
-class ShadowMapTexture: public Texture {
+class DepthTexture: public Texture {
 public:
-    ShadowMapTexture(float width, float height) {
+    DepthTexture(float width, float height) {
         glGenTextures(1, &textureImage);
         glBindTexture(GL_TEXTURE_2D, textureImage);
         Id = GetId();
