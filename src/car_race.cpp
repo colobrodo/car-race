@@ -65,9 +65,11 @@ positive Z axis points "outside" the screen
 #include <utils/vehicle.h>
 #include <utils/particle.h>
 #include <utils/shadowmap_texture.h>
+#include <utils/skybox_texture.h>
 #include <utils/image_texture.h>
 #include <utils/mesh_renderer.h>
 #include <utils/particle_renderer.h>
+#include <utils/skybox_renderer.h>
 #include <utils/grass_renderer.h>
 #include <utils/shadow_renderer.h>
 
@@ -408,6 +410,9 @@ int main()
     renderer.illumination.alpha = 0.6f;
     renderer.illumination.F0 = 0.9f;
 
+    // renderer for skybox
+    SkyboxRenderer skyboxRenderer;
+
     // renderer for the shadow map
     ShadowRenderer shadowRenderer;
 
@@ -589,6 +594,7 @@ int main()
     // ImageTexture planeNormalMap("../textures/Stone_NormalMap.jpg");
     // ImageTexture planeDisplacementMap("../textures/Stone_DispMap.jpg");
     ImageTexture grassTexture("../textures/grassBlade.png", true);
+    SkyboxTexture skybox("../textures/skyboxs/default/");
     
     // create shadow map frame buffer object
     GLuint depthMapFBO;
@@ -725,6 +731,7 @@ int main()
         // reactivate depth test
         glEnable(GL_DEPTH_TEST);
 
+        /// rendering the shadow map to the depth map framebuffer
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
         glClear(GL_DEPTH_BUFFER_BIT);
@@ -779,6 +786,22 @@ int main()
             /// draw particles using the particle renderer
             particleRenderer.Draw();
         }
+
+        /// rendering the skybox
+        // we render it after all the other objects, in order to avoid the depth tests as much as possible.
+        // we will set, in the vertex shader for the skybox, all the values to the maximum depth. Thus, the environment map is rendered only where there are no other objects in the image (so, only on the background).
+        //Thus, we set the depth test to GL_LEQUAL, in order to let the fragments of the background pass the depth test (because they have the maximum depth possible, and the default setting is GL_LESS)
+        glDepthFunc(GL_LEQUAL);
+        // to have the background fixed during camera movements, we have to remove the translations from the view matrix
+        // thus, we consider only the top-left submatrix, and we create a new 4x4 matrix
+        auto skyboxView = glm::mat4(glm::mat3(view)); 
+        skyboxRenderer.Activate(skyboxView, projection);
+        skyboxRenderer.SetTexture(skybox);
+        // we render the cube with the environment map
+        cubeModel->Draw();
+        // we set again the depth test to the default operation for the next frame
+        glDepthFunc(GL_LESS);
+
 
         {
             /// ImGui Dialog
@@ -849,6 +872,7 @@ int main()
     // when I exit from the graphics loop, it is because the application is closing
     // we delete the Shader Programs and renderers
     renderer.Delete();
+    skyboxRenderer.Delete();
     shadowRenderer.Delete();
     particleRenderer.Delete();
     #ifdef USE_GRASS

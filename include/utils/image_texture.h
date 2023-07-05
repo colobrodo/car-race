@@ -5,8 +5,10 @@
 #include "../glad/glad.h"
 
 // we include the library for images loading
+#ifndef STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #include "../stb_image/stb_image.h"
+#endif
 
 #include "texture.h"
 
