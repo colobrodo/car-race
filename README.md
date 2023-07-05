@@ -6,6 +6,8 @@ I think despite that you can still have fun trying it out :wink:
 Among the things I implemented there are:
 - **Particle System**: A Particle System with istanced rendering.   
 You can try it tweeking all the parameters for the emitter compiling the file `src/particle_playground`
+- **Shadow Map**: Some shadows using [Shadow mapping technique](https://en.wikipedia.org/wiki/Shadow_mapping) and Poisson sampling PCF for softer effect
+- **Sky box**: An image to simulate the environment using a cubemap
 - A **Physichs-based car** that can interact with the environment 
 - **Textures**
 - **Normal Map**
