@@ -5,9 +5,13 @@
 
 class Texture {
 public:
-    void Activate(GLint shaderLocation) {
+    inline void Activate() {
         glActiveTexture(GL_TEXTURE0 + Id);
         glBindTexture(GL_TEXTURE_2D, textureImage);
+    }
+
+    void SendToShader(GLint shaderLocation) {
+        Activate();
         glUniform1i(shaderLocation, Id);
     }
 

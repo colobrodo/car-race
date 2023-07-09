@@ -63,13 +63,13 @@ public:
         auto repeatLocation = glGetUniformLocation(shader->Program, "repeat");
         glUniform1f(repeatLocation, repeat);
         auto textureLocation = glGetUniformLocation(shader->Program, "tex1");
-        texture.Activate(textureLocation);
+        texture.SendToShader(textureLocation);
     }
 
     void SetNormalMap(Texture &texture) {
         SetNormalCalculation(NORMAL_MAP);
         auto normalMapLocation = glGetUniformLocation(shader->Program, "normalMap1");
-        texture.Activate(normalMapLocation);
+        texture.SendToShader(normalMapLocation);
     }
     
     // TODO: pass scale and maybe bias
@@ -78,14 +78,14 @@ public:
         auto parallaxMapLocation = glGetUniformLocation(shader->Program, "parallaxMap");
         auto parallaxMapScaleLocation = glGetUniformLocation(shader->Program, "parallaxMappingScale");
         glUniform1f(parallaxMapScaleLocation, scale);
-        texture.Activate(parallaxMapLocation);
+        texture.SendToShader(parallaxMapLocation);
     }
 
     void SetShadowMap(Texture &texture, glm::mat4 lightView, glm::mat4 lightProjection) {
         glUniformMatrix4fv(glGetUniformLocation(shader->Program, "lightView"), 1, GL_FALSE, glm::value_ptr(lightView));
         glUniformMatrix4fv(glGetUniformLocation(shader->Program, "lightProjection"), 1, GL_FALSE, glm::value_ptr(lightProjection));
         auto shadowMapLocation = glGetUniformLocation(shader->Program, "shadowMap");
-        texture.Activate(shadowMapLocation);
+        texture.SendToShader(shadowMapLocation);
     }
 
     void SetPattern(PatternType pattern) {

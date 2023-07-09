@@ -12,6 +12,6 @@ public:
 
     void SetTexture(SkyboxTexture &texture) {
         auto textureLocation = glGetUniformLocation(shader->Program, "tex");
-        texture.Activate(textureLocation);
+        texture.SendToShader(textureLocation);
     }
 };

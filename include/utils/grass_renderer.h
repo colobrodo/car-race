@@ -14,7 +14,7 @@ class GrassRenderer: public ObjectRenderer {
 
     virtual void SetTexture(Texture &texture, float repeat=1.f) {
         auto textureLocation = glGetUniformLocation(shader->Program, "tex");
-        texture.Activate(textureLocation);
+        texture.SendToShader(textureLocation);
     }
 
     void SetShadowMap(GLuint texture, glm::mat4 lightView, glm::mat4 lightProjection) {

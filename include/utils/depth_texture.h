@@ -10,7 +10,7 @@
 
 class DepthTexture: public Texture {
 public:
-    DepthTexture(float width, float height) {
+    DepthTexture(float width, float height): width(width), height(height) {
         glGenTextures(1, &textureImage);
         glBindTexture(GL_TEXTURE_2D, textureImage);
         Id = GetId();
@@ -33,4 +33,19 @@ public:
         glBindFramebuffer(GL_FRAMEBUFFER, 0); 
     }
     
+    void CopyFromCurrentFrameBuffer() {
+        Activate();
+        glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+                         0, 0, width, height,
+                         0);
+    }
+
+    void Clear() {
+        std::vector<GLfloat> emptyData(width * height * 4, 1.f);
+        glBindTexture(GL_TEXTURE_2D, textureImage);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_DEPTH_COMPONENT, GL_FLOAT, &emptyData[0]);
+    }
+private:
+    float width, height;
+
 };

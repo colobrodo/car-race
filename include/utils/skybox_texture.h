@@ -64,13 +64,15 @@ public:
         Id = GetId();
     }
 
-    void Activate(GLint shaderLocation) {
-        // override in order to support different texture binding type
+    void Activate() {
         glActiveTexture(GL_TEXTURE0 + Id);
+        // override in order to support different texture binding type
         glBindTexture(GL_TEXTURE_CUBE_MAP, textureImage);
-        glUniform1i(shaderLocation, Id);
     }
 
-
+    void SendToShader(GLint shaderLocation) {
+        Activate();
+        glUniform1i(shaderLocation, Id);
+    }
 };
 

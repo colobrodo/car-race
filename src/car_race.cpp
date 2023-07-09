@@ -77,6 +77,7 @@ positive Z axis points "outside" the screen
 #include <utils/particle_renderer.h>
 #include <utils/skybox_renderer.h>
 #include <utils/grass_renderer.h>
+#include <utils/heightmap_depth_renderer.h>
 #include <utils/shadow_renderer.h>
 
 #include <imgui/imgui.h>
@@ -421,6 +422,9 @@ int main()
 
     // renderer for the shadow map
     ShadowRenderer shadowRenderer;
+    
+    // renderer for the heightmap depth buffer
+    HeightmapDepthRenderer heightmapRenderer;
 
     #ifdef USE_GRASS 
     // renderer for 2D textures, objects
@@ -601,20 +605,27 @@ int main()
     // ImageTexture planeDisplacementMap("../textures/Stone_DispMap.jpg");
     ImageTexture grassTexture("../textures/grassBlade.png", true);
     SkyboxTexture skybox("../textures/skyboxs/default/");
-    ImageTexture heightmap("../textures/heightmap.png");
     
     // create shadow map frame buffer object
     GLuint depthMapFBO;
     glGenFramebuffers(1, &depthMapFBO);
     // create texture for shadow map
     DepthTexture shadowMap(SHADOW_WIDTH, SHADOW_HEIGHT);
-    
     // attach the texture to the framebuffer object
     shadowMap.AttachToFrameBuffer(depthMapFBO);
+    
+    // create heightmap frame buffer object
+    GLuint heightmapFBO;
+    glGenFramebuffers(1, &heightmapFBO);
+    float heightmap_width = 50, heightmap_height = 50;
+    DepthTexture previousFrameHeightmap(2048, 2048);
+    previousFrameHeightmap.Clear();
+    DepthTexture heightmap(2048, 2048);
+    // attach the texture to the framebuffer object
+    heightmap.AttachToFrameBuffer(heightmapFBO);
 
-    // function for drawing the entire scene, the passed renderer should be active
-    auto renderScene = [&](ObjectRenderer &objectRenderer) {
-        // set texture for the plane
+    auto renderPlane = [&](ObjectRenderer &objectRenderer) {
+            // set texture for the plane
         objectRenderer.SetTexture(planeTexture, 20.f);
         // set the normal map
         objectRenderer.SetNormalMap(planeNormalMap);
@@ -622,7 +633,9 @@ int main()
         objectRenderer.SetParallaxMap(planeDisplacementMap, -.01f);
 
         drawPlane(objectRenderer, plane_pos, plane_size);
+    };
 
+    auto renderObjects = [&](ObjectRenderer &objectRenderer) {
         // do not use parallax map anymore but restore uv coordinate interpolation
         objectRenderer.SetTexCoordinateCalculation(UV);
         // reset normals calculation in vertex shader with normal matrix not anymore with normal map
@@ -646,37 +659,42 @@ int main()
         }
     };
 
+    // function for drawing the entire scene, the passed renderer should be active
+    auto renderScene = [&](ObjectRenderer &objectRenderer) {
+        renderPlane(objectRenderer);
+        renderObjects(objectRenderer);
+    };
+
     // heightmap
     TesselationShader heightmapShader("heightmap.vert", "heightmap.frag", "heightmap.tcs", "heightmap.tes"); 
     std::vector<float> vertices;
 
     unsigned rez = 20;
-    auto w = 50, h = 50;
     for(unsigned i = 0; i <= rez-1; i++)
     {
         for(unsigned j = 0; j <= rez-1; j++)
         {
-            vertices.push_back(-w/2.0f + w*i/(float)rez); // v.x
-            vertices.push_back(0.0f); // v.y
-            vertices.push_back(-h/2.0f + h*j/(float)rez); // v.z
+            vertices.push_back(-heightmap_width/2.0f + heightmap_width*i/(float)rez); // v.x
+            vertices.push_back(plane_pos.z); // v.y
+            vertices.push_back(-heightmap_height/2.0f + heightmap_height*j/(float)rez); // v.z
             vertices.push_back(i / (float)rez); // u
             vertices.push_back(j / (float)rez); // v
 
-            vertices.push_back(-w/2.0f + w*(i+1)/(float)rez); // v.x
-            vertices.push_back(0.0f); // v.y
-            vertices.push_back(-h/2.0f + h*j/(float)rez); // v.z
+            vertices.push_back(-heightmap_width/2.0f + heightmap_width*(i+1)/(float)rez); // v.x
+            vertices.push_back(plane_pos.z); // v.y
+            vertices.push_back(-heightmap_height/2.0f + heightmap_height*j/(float)rez); // v.z
             vertices.push_back((i+1) / (float)rez); // u
             vertices.push_back(j / (float)rez); // v
 
-            vertices.push_back(-w/2.0f + w*i/(float)rez); // v.x
-            vertices.push_back(0.0f); // v.y
-            vertices.push_back(-h/2.0f + h*(j+1)/(float)rez); // v.z
+            vertices.push_back(-heightmap_width/2.0f + heightmap_width*i/(float)rez); // v.x
+            vertices.push_back(plane_pos.z); // v.y
+            vertices.push_back(-heightmap_height/2.0f + heightmap_height*(j+1)/(float)rez); // v.z
             vertices.push_back(i / (float)rez); // u
             vertices.push_back((j+1) / (float)rez); // v
 
-            vertices.push_back(-w/2.0f + w*(i+1)/(float)rez); // v.x
-            vertices.push_back(0.0f); // v.y
-            vertices.push_back(-h/2.0f + h*(j+1)/(float)rez); // v.z
+            vertices.push_back(-heightmap_width/2.0f + heightmap_width*(i+1)/(float)rez); // v.x
+            vertices.push_back(plane_pos.z); // v.y
+            vertices.push_back(-heightmap_height/2.0f + heightmap_height*(j+1)/(float)rez); // v.z
             vertices.push_back((i+1) / (float)rez); // u
             vertices.push_back((j+1) / (float)rez); // v
         }
@@ -701,7 +719,6 @@ int main()
     // cause we are drawing quads
     constexpr int NUM_PATCH_POINTS = 4;
     glPatchParameteri(GL_PATCH_VERTICES, NUM_PATCH_POINTS);
-
 
     /// Imgui setup
     {
@@ -748,6 +765,11 @@ int main()
 
         // move the particle source with the car
         updateEmitterPosition(vehicle, emitter, deltaTime);
+
+        // Snow clear
+        if(keys[GLFW_KEY_S]) {
+            previousFrameHeightmap.Clear();
+        }
 
         /// key handling
         // if space is pressed and we waited at least 'shootCooldown' since the last bullet
@@ -806,13 +828,40 @@ int main()
         shadowRenderer.Activate(lightView, lightProjection);
         renderScene(shadowRenderer);
 
+        /// REFACTOR: the heightmap height, the resolution should be refactored in a separate class
+        /// render the scene from the plane looking to the sky into the heightmap depthbuffer
+        // the projection matrix should be big as the heightmap and the near/far planes should match 
+        // the distance from the ground up to the maximum height of the heightmap 
+        // activate the fbo attached to the heightmap texture
+        glViewport(0, 0, 2048, 2048);
+        glBindFramebuffer(GL_FRAMEBUFFER, heightmapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glm::mat4 heightmapProjection = glm::ortho(-heightmap_width / 2, heightmap_width / 2, -heightmap_height / 2, heightmap_height / 2, -1.f, 1.f), 
+                  heightmapView = glm::lookAt(glm::vec3(0.f, 0.01f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+        heightmapRenderer.Activate(heightmapView, heightmapProjection);
+        heightmapRenderer.SetViewportSize(glm::vec2(2048, 2048));
+        heightmapRenderer.SetPreviousFrame(previousFrameHeightmap);
+        
+        /// HACK: drawing a quad on the maximum depth frame to let the fragment
+        ///       shader pass on each pixel of the texture
+        glm::mat4 quadTrasformation = glm::scale(glm::mat4(1.f), glm::vec3(heightmap_width / 2, 1.0f,heightmap_height / 2));
+        quadTrasformation = glm::translate(quadTrasformation, glm::vec3(0.f, 1.f, 0.f));
+        quadTrasformation = glm::rotate(quadTrasformation, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+        heightmapRenderer.SetModelTrasformation(quadTrasformation);
+        drawQuad();
+
+        renderObjects(heightmapRenderer);
+        previousFrameHeightmap.CopyFromCurrentFrameBuffer();
+
+        // render the standard scene
         // reset the framebuffer to main buffer application
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glViewport(0, 0, screenWidth, screenHeight);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         // we "clear" the frame and z buffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // we set the rendering mode
+
+        // before render the scene on the main buffer we set the rendering mode
         if (wireframe)
             // Draw in wireframe
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -827,16 +876,18 @@ int main()
         renderer.SetShadowMap(shadowMap, lightView, lightProjection);
         renderScene(renderer);
 
-        // be sure to activate shader when setting uniforms/drawing objects
         heightmapShader.Use();
-
         // view/projection transformations
         glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
         glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
 
+        // heightmap parameters: y position and height
+        glUniform1f(glGetUniformLocation(heightmapShader.Program, "heightmapHeight"), 1.f);
+        glUniform1f(glGetUniformLocation(heightmapShader.Program, "heightmapY"), plane_pos.y);
+
         // world transformation
         auto textureLocation = glGetUniformLocation(heightmapShader.Program, "tex");
-        heightmap.Activate(textureLocation);
+        heightmap.SendToShader(textureLocation);
         glm::mat4 model = glm::mat4(1.0f);
         glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(model));
 
@@ -852,10 +903,6 @@ int main()
         glDrawArraysInstanced(GL_TRIANGLES, 0, 6, N_GRASS_BUSH * 3);
         glBindVertexArray(0);
         #endif
-
-        // for particle and backbuffer we always reset the wireframe to fill
-        // (otherwise we don't see anything)
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         // update all particles
         emitter->Update(deltaTime);
@@ -881,6 +928,9 @@ int main()
         // we set again the depth test to the default operation for the next frame
         glDepthFunc(GL_LESS);
 
+        // for backbuffer we always reset the wireframe to fill
+        // (otherwise we don't see anything)
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
         {
             /// ImGui Dialog
