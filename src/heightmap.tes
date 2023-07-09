@@ -7,6 +7,9 @@ uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 
+uniform float heightmapHeight = 1;
+uniform float heightmapY = -1;
+
 in vec2 texCoords[];
 
 // send height to the fragment shader
@@ -137,7 +140,7 @@ void main()
     interp_UV = (t1 - t0) * v + t0;
 
     // lookup texel at patch coordinate for height and scale + shift as desired
-    Height = texture(tex, interp_UV).y * 2;
+    Height = texture(tex, interp_UV).r * heightmapHeight + heightmapY + 0.08;
     
     // float frequency = 3;
     // Height = snoise(interp_UV.xyy * frequency) * 2;
