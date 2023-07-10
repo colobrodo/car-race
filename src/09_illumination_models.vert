@@ -84,5 +84,4 @@ void main() {
   lightFragPosition = lightProjection * lightView * modelMatrix * vec4(position, 1.0);
 
   interp_UV = UV;
-
 }

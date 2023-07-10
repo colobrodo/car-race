@@ -43,8 +43,6 @@ positive Z axis points "outside" the screen
 
 #include <cmath>
 
-//#define USE_GRASS
-
 #include <glad/glad.h>
 
 // GLFW library to create window and to manage I/O
@@ -60,7 +58,6 @@ positive Z axis points "outside" the screen
 #include <utils/random.h>
 
 #include <utils/shader.h>
-#include <utils/tesselation_shader.h>
 
 #include <utils/model.h>
 #include <utils/camera.h>
@@ -76,7 +73,7 @@ positive Z axis points "outside" the screen
 #include <utils/mesh_renderer.h>
 #include <utils/particle_renderer.h>
 #include <utils/skybox_renderer.h>
-#include <utils/grass_renderer.h>
+#include <utils/heightmap_renderer.h>
 #include <utils/heightmap_depth_renderer.h>
 #include <utils/shadow_renderer.h>
 
@@ -424,12 +421,7 @@ int main()
     ShadowRenderer shadowRenderer;
     
     // renderer for the heightmap depth buffer
-    HeightmapDepthRenderer heightmapRenderer;
-
-    #ifdef USE_GRASS 
-    // renderer for 2D textures, objects
-    GrassRenderer grassRenderer;
-    #endif
+    HeightmapDepthRenderer heightmapDepthRenderer;
 
     // the Shader Program used on the framebuffer, for effect on the whole screen
     Shader postprocessing_shader = Shader("postprocessing.vert", "postprocessing.frag");
@@ -492,65 +484,6 @@ int main()
     // set the type of the particle 
     particleRenderer.SetParticleShape(CIRCLE);
 
-    #ifdef USE_GRASS 
-    // create grass bushes with instanciated rendering
-    // generate grass positions
-    constexpr int N_GRASS_BUSH = 5000;
-    auto grasses = new glm::mat4[N_GRASS_BUSH * 3];
-    glm::mat4 trasformation;
-    for(int t = 0; t < N_GRASS_BUSH; t++) {
-        auto x = uniform_between(-1.f, 1.f) * plane_size.x,
-             y = plane_size.y,
-             z = uniform_between(-1.f, 1.f) * plane_size.z;
-        auto grass = glm::vec3(x, y, z);
-        // draw 3 quad for each grass bush 
-        for(int k=0; k < 3; k++) {
-            auto matrixIndex = t * 3 + k;            
-            trasformation = glm::mat4(1.0f);
-            // each "cutouts" is equaly rotated along the y axis
-            trasformation = glm::translate(trasformation, grass);
-            trasformation = glm::rotate(trasformation, glm::radians(360.f/3 * k), glm::vec3(0.f, 1.f, 0.f));
-            grasses[matrixIndex] = trasformation;
-        }
-    }
-    // initialize buffer VAO and VBO for grass rendering, similar to particle rendering
-    GLuint grassVAO;
-    GLuint grassVBO;
-    glGenVertexArrays(1, &grassVAO);
-    glGenBuffers(1, &grassVBO);
-    glBindVertexArray(grassVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, grassVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
-    // vertex buffer object
-    GLuint grassModelMatrixBuffer;
-    glGenBuffers(1, &grassModelMatrixBuffer);
-    glBindBuffer(GL_ARRAY_BUFFER, grassModelMatrixBuffer);
-    auto grassBufferSize = N_GRASS_BUSH * 3 * sizeof(glm::mat4);
-    glBufferData(GL_ARRAY_BUFFER, grassBufferSize, &grasses[0], GL_STATIC_DRAW);
-    // vertex attributes
-    // we need to allocate space for each matrix4 trasformation, we should do it row by row
-    glEnableVertexAttribArray(2); 
-    glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)0);
-    glEnableVertexAttribArray(3); 
-    glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(1 * vec4Size));
-    glEnableVertexAttribArray(4); 
-    glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(2 * vec4Size));
-    glEnableVertexAttribArray(5); 
-    glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, 4 * vec4Size, (void*)(3 * vec4Size));
-    // specify attrib divisor for each particle parameter
-    glVertexAttribDivisor(2, 1);
-    glVertexAttribDivisor(3, 1);
-    glVertexAttribDivisor(4, 1);
-    glVertexAttribDivisor(5, 1);
-    // rebind to standard vertex array
-    glBindVertexArray(0);
-    #endif
-
-
     /// create vehicle
     glm::vec3 chassisBox(1.f, .5f, 2.f);
     // default wheel infos
@@ -600,10 +533,10 @@ int main()
     ImageTexture planeTexture("../textures/DirtFloor.jpg");
     ImageTexture planeNormalMap("../textures/DirtFloor_NormalMap.png");
     ImageTexture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
+    ImageTexture snowTexture("../textures/snow.jpg");
     // ImageTexture planeTexture("../textures/Stone.jpg");
     // ImageTexture planeNormalMap("../textures/Stone_NormalMap.jpg");
     // ImageTexture planeDisplacementMap("../textures/Stone_DispMap.jpg");
-    ImageTexture grassTexture("../textures/grassBlade.png", true);
     SkyboxTexture skybox("../textures/skyboxs/default/");
     
     // create shadow map frame buffer object
@@ -620,9 +553,9 @@ int main()
     float heightmap_width = 50, heightmap_height = 50;
     DepthTexture previousFrameHeightmap(2048, 2048);
     previousFrameHeightmap.Clear();
-    DepthTexture heightmap(2048, 2048);
+    DepthTexture heightmapTexture(2048, 2048);
     // attach the texture to the framebuffer object
-    heightmap.AttachToFrameBuffer(heightmapFBO);
+    heightmapTexture.AttachToFrameBuffer(heightmapFBO);
 
     auto renderPlane = [&](ObjectRenderer &objectRenderer) {
             // set texture for the plane
@@ -630,7 +563,7 @@ int main()
         // set the normal map
         objectRenderer.SetNormalMap(planeNormalMap);
         // set the displacement texture that is used as parallax map
-        objectRenderer.SetParallaxMap(planeDisplacementMap, -.01f);
+        objectRenderer.SetParallaxMap(planeDisplacementMap, -.005f);
 
         drawPlane(objectRenderer, plane_pos, plane_size);
     };
@@ -665,60 +598,10 @@ int main()
         renderObjects(objectRenderer);
     };
 
-    // heightmap
-    TesselationShader heightmapShader("heightmap.vert", "heightmap.frag", "heightmap.tcs", "heightmap.tes"); 
-    std::vector<float> vertices;
-
-    unsigned rez = 20;
-    for(unsigned i = 0; i <= rez-1; i++)
-    {
-        for(unsigned j = 0; j <= rez-1; j++)
-        {
-            vertices.push_back(-heightmap_width/2.0f + heightmap_width*i/(float)rez); // v.x
-            vertices.push_back(plane_pos.z); // v.y
-            vertices.push_back(-heightmap_height/2.0f + heightmap_height*j/(float)rez); // v.z
-            vertices.push_back(i / (float)rez); // u
-            vertices.push_back(j / (float)rez); // v
-
-            vertices.push_back(-heightmap_width/2.0f + heightmap_width*(i+1)/(float)rez); // v.x
-            vertices.push_back(plane_pos.z); // v.y
-            vertices.push_back(-heightmap_height/2.0f + heightmap_height*j/(float)rez); // v.z
-            vertices.push_back((i+1) / (float)rez); // u
-            vertices.push_back(j / (float)rez); // v
-
-            vertices.push_back(-heightmap_width/2.0f + heightmap_width*i/(float)rez); // v.x
-            vertices.push_back(plane_pos.z); // v.y
-            vertices.push_back(-heightmap_height/2.0f + heightmap_height*(j+1)/(float)rez); // v.z
-            vertices.push_back(i / (float)rez); // u
-            vertices.push_back((j+1) / (float)rez); // v
-
-            vertices.push_back(-heightmap_width/2.0f + heightmap_width*(i+1)/(float)rez); // v.x
-            vertices.push_back(plane_pos.z); // v.y
-            vertices.push_back(-heightmap_height/2.0f + heightmap_height*(j+1)/(float)rez); // v.z
-            vertices.push_back((i+1) / (float)rez); // u
-            vertices.push_back((j+1) / (float)rez); // v
-        }
-    }
-
-    // first, configure the cube's VAO (and terrainVBO)
-    unsigned int terrainVAO, terrainVBO;
-    glGenVertexArrays(1, &terrainVAO);
-    glBindVertexArray(terrainVAO);
-
-    glGenBuffers(1, &terrainVBO);
-    glBindBuffer(GL_ARRAY_BUFFER, terrainVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertices.size(), &vertices[0], GL_STATIC_DRAW);
-
-    // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-    // texCoord attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(sizeof(float) * 3));
-    glEnableVertexAttribArray(1);
-
-    // cause we are drawing quads
-    constexpr int NUM_PATCH_POINTS = 4;
-    glPatchParameteri(GL_PATCH_VERTICES, NUM_PATCH_POINTS);
+    // heightmap object
+    Heightmap heightmap(plane_pos.y, heightmap_width, heightmap_height, 1.f);
+    // renderer for the heightmap
+    HeightmapRenderer heightmapRenderer(heightmap);
 
     /// Imgui setup
     {
@@ -838,19 +721,20 @@ int main()
         glClear(GL_DEPTH_BUFFER_BIT);
         glm::mat4 heightmapProjection = glm::ortho(-heightmap_width / 2, heightmap_width / 2, -heightmap_height / 2, heightmap_height / 2, -1.f, 1.f), 
                   heightmapView = glm::lookAt(glm::vec3(0.f, 0.01f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
-        heightmapRenderer.Activate(heightmapView, heightmapProjection);
-        heightmapRenderer.SetViewportSize(glm::vec2(2048, 2048));
-        heightmapRenderer.SetPreviousFrame(previousFrameHeightmap);
+        heightmapDepthRenderer.Activate(heightmapView, heightmapProjection);
+        heightmapDepthRenderer.SetTexture(snowTexture);
+        heightmapDepthRenderer.SetViewportSize(glm::vec2(2048, 2048));
+        heightmapDepthRenderer.SetPreviousFrame(previousFrameHeightmap);
         
         /// HACK: drawing a quad on the maximum depth frame to let the fragment
         ///       shader pass on each pixel of the texture
-        glm::mat4 quadTrasformation = glm::scale(glm::mat4(1.f), glm::vec3(heightmap_width / 2, 1.0f,heightmap_height / 2));
+        glm::mat4 quadTrasformation = glm::scale(glm::mat4(1.f), glm::vec3(heightmap_width / 2, 1.0f, heightmap_height / 2));
         quadTrasformation = glm::translate(quadTrasformation, glm::vec3(0.f, 1.f, 0.f));
         quadTrasformation = glm::rotate(quadTrasformation, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-        heightmapRenderer.SetModelTrasformation(quadTrasformation);
+        heightmapDepthRenderer.SetModelTrasformation(quadTrasformation);
         drawQuad();
 
-        renderObjects(heightmapRenderer);
+        renderObjects(heightmapDepthRenderer);
         previousFrameHeightmap.CopyFromCurrentFrameBuffer();
 
         // render the standard scene
@@ -876,33 +760,21 @@ int main()
         renderer.SetShadowMap(shadowMap, lightView, lightProjection);
         renderScene(renderer);
 
-        heightmapShader.Use();
-        // view/projection transformations
-        glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "projectionMatrix"), 1, GL_FALSE, glm::value_ptr(projection));
-        glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "viewMatrix"), 1, GL_FALSE, glm::value_ptr(view));
+        // activate the heightmap renderer with the view/projection transformations of the camera
+        heightmapRenderer.Activate(view, projection);
 
-        // heightmap parameters: y position and height
-        glUniform1f(glGetUniformLocation(heightmapShader.Program, "heightmapHeight"), 1.f);
-        glUniform1f(glGetUniformLocation(heightmapShader.Program, "heightmapY"), plane_pos.y);
+        // set the shadowmap        
+        heightmapRenderer.SetShadowMap(shadowMap, lightView, lightProjection);
 
-        // world transformation
-        auto textureLocation = glGetUniformLocation(heightmapShader.Program, "tex");
-        heightmap.SendToShader(textureLocation);
+        // depth frame buffer
+        heightmapRenderer.SetDepthTexture(heightmapTexture);
+
+        // plane texture
+        heightmapRenderer.SetTexture(snowTexture);
+        // drawing the heightmap, for now is positioned with the center at
         glm::mat4 model = glm::mat4(1.0f);
-        glUniformMatrix4fv(glGetUniformLocation(heightmapShader.Program, "modelMatrix"), 1, GL_FALSE, glm::value_ptr(model));
-
-        glBindVertexArray(terrainVAO);
-        glDrawArrays(GL_PATCHES, 0, NUM_PATCH_POINTS * rez * rez);
-
-        #ifdef USE_GRASS 
-        // draw quads for grass with instanciated rendering
-        grassRenderer.Activate(view, projection);
-        grassRenderer.SetTexture(grassTexture);
-        grassRenderer.SetShadowMap(depthMap, lightView, lightProjection);
-        glBindVertexArray(grassVAO);
-        glDrawArraysInstanced(GL_TRIANGLES, 0, 6, N_GRASS_BUSH * 3);
-        glBindVertexArray(0);
-        #endif
+        heightmapRenderer.SetModelTrasformation(model);
+        heightmap.Draw();
 
         // update all particles
         emitter->Update(deltaTime);
@@ -1003,10 +875,9 @@ int main()
     renderer.Delete();
     skyboxRenderer.Delete();
     shadowRenderer.Delete();
+    heightmapDepthRenderer.Delete();
+    heightmapRenderer.Delete();
     particleRenderer.Delete();
-    #ifdef USE_GRASS
-    grassRenderer.Delete();
-    #endif
     postprocessing_shader.Delete();
     // we delete the data of the physical simulation
     bulletSimulation.Clear();
