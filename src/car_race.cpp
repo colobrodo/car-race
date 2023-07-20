@@ -87,6 +87,8 @@ positive Z axis points "outside" the screen
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+#define HEIGHTMAP_SIZE 1024
+
 // Dimensioni della finestra dell'applicazione
 GLuint screenWidth = 1400, screenHeight = 1100;
 
@@ -454,8 +456,37 @@ int main()
     // in this way, the plane will not fall following the gravity force.
     btRigidBody *plane = bulletSimulation.createRigidBody(BOX, plane_pos, plane_size, plane_rot, 0.0f, 0.3f, 0.3f);
 
-    /// create particles
-    auto totalParticles = 500;
+    /// create particles emitter for snow
+    auto totalParticles = 1500;
+    auto snowEmitter = new ParticleEmitter(totalParticles);
+    snowEmitter->Position = glm::vec3(0.f, 15.f, 0.f);
+    {
+        // set the random variables
+        snowEmitter->Size0     = 0.02f;
+        snowEmitter->Size1     = 0.1f;
+        snowEmitter->Rotation0 = 0.1f;
+        snowEmitter->Rotation1 = 5.f;
+        snowEmitter->Lifespan0 = 4.f;
+        snowEmitter->Lifespan1 = 10.f;
+        snowEmitter->Velocity  = glm::vec3(0.f, .1f, 0.f);
+        snowEmitter->DeltaVelocity0 = glm::vec3( .8f, -.1f,  .8f);
+        snowEmitter->DeltaVelocity1 = glm::vec3(-.8f, 0.f, -.8f);
+        snowEmitter->Color0    = glm::vec3(.8f, .8f, .8f);
+        snowEmitter->Color1    = glm::vec3(.5f, .5f, .5f);
+        snowEmitter->Scale0    = glm::vec3(1.f, 1.f, 1.f);
+        snowEmitter->Scale1    = glm::vec3(1.f, 1.f, 1.f);
+        snowEmitter->Alpha0    = .6f;
+        snowEmitter->Alpha1    = 1.f;
+        snowEmitter->Gravity   = glm::vec3(0.f, -.5f, 0.f);
+    }
+    snowEmitter->spawnShape = RECTANGLE;
+    snowEmitter->spawnRectSize = {50, 50};
+
+    ParticleRenderer snowParticleRenderer(*snowEmitter);
+    snowParticleRenderer.SetParticleShape(SQUARE);
+
+
+    /// create particles emitter for turbo machine
     auto emitter = new ParticleEmitter(totalParticles);
     {
         // set the random variables
@@ -551,11 +582,16 @@ int main()
     GLuint heightmapFBO;
     glGenFramebuffers(1, &heightmapFBO);
     float heightmap_width = 50, heightmap_height = 50;
-    DepthTexture previousFrameHeightmap(2048, 2048);
+    DepthTexture previousFrameHeightmap(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
     previousFrameHeightmap.Clear();
-    DepthTexture heightmapTexture(2048, 2048);
+    DepthTexture heightmapTexture(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
     // attach the texture to the framebuffer object
     heightmapTexture.AttachToFrameBuffer(heightmapFBO);
+
+    // heightmap object
+    Heightmap heightmap(plane_pos.y, heightmap_width, heightmap_height, 1.f);
+    // renderer for the heightmap
+    HeightmapRenderer heightmapRenderer(heightmap);
 
     auto renderPlane = [&](ObjectRenderer &objectRenderer) {
             // set texture for the plane
@@ -592,16 +628,20 @@ int main()
         }
     };
 
+    auto renderHeightmap = [&](ObjectRenderer &objectRenderer) {
+        // plane texture
+        objectRenderer.SetTexture(snowTexture);
+        // drawing the heightmap, for now is positioned with the center at
+        glm::mat4 model = glm::mat4(1.0f);
+        objectRenderer.SetModelTrasformation(model);
+        heightmap.Draw();
+    };
+
     // function for drawing the entire scene, the passed renderer should be active
     auto renderScene = [&](ObjectRenderer &objectRenderer) {
         renderPlane(objectRenderer);
         renderObjects(objectRenderer);
     };
-
-    // heightmap object
-    Heightmap heightmap(plane_pos.y, heightmap_width, heightmap_height, 1.f);
-    // renderer for the heightmap
-    HeightmapRenderer heightmapRenderer(heightmap);
 
     /// Imgui setup
     {
@@ -700,6 +740,32 @@ int main()
         // reactivate depth test
         glEnable(GL_DEPTH_TEST);
 
+        /// REFACTOR: the heightmap height, the resolution should be refactored in a separate class
+        /// render the scene from the plane looking to the sky into the heightmap depthbuffer
+        // the projection matrix should be big as the heightmap and the near/far planes should match 
+        // the distance from the ground up to the maximum height of the heightmap 
+        // activate the fbo attached to the heightmap texture
+        glViewport(0, 0, HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
+        glBindFramebuffer(GL_FRAMEBUFFER, heightmapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glm::mat4 heightmapProjection = glm::ortho(-heightmap.width / 2, heightmap.width / 2, -heightmap.height / 2, heightmap.height / 2, -1.f, 1.f),
+                  heightmapView = glm::lookAt(glm::vec3(0.f, 0.01f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
+        heightmapDepthRenderer.Activate(heightmapView, heightmapProjection);
+        heightmapDepthRenderer.SetTexture(snowTexture);
+        heightmapDepthRenderer.SetViewportSize(glm::vec2(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE));
+        heightmapDepthRenderer.SetPreviousFrame(previousFrameHeightmap);
+        
+        /// HACK: drawing a quad on the maximum depth frame to let the fragment
+        ///       shader pass on each pixel of the texture
+        glm::mat4 quadTrasformation = glm::scale(glm::mat4(1.f), glm::vec3(heightmap.width / 2, heightmap.depth, heightmap.height / 2));
+        quadTrasformation = glm::translate(quadTrasformation, glm::vec3(0.f, heightmap.depth, 0.f));
+        quadTrasformation = glm::rotate(quadTrasformation, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
+        heightmapDepthRenderer.SetModelTrasformation(quadTrasformation);
+        drawQuad();
+
+        renderObjects(heightmapDepthRenderer);
+        previousFrameHeightmap.CopyFromCurrentFrameBuffer();
+
         /// rendering the shadow map to the depth map framebuffer
         glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
         glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -710,32 +776,6 @@ int main()
 
         shadowRenderer.Activate(lightView, lightProjection);
         renderScene(shadowRenderer);
-
-        /// REFACTOR: the heightmap height, the resolution should be refactored in a separate class
-        /// render the scene from the plane looking to the sky into the heightmap depthbuffer
-        // the projection matrix should be big as the heightmap and the near/far planes should match 
-        // the distance from the ground up to the maximum height of the heightmap 
-        // activate the fbo attached to the heightmap texture
-        glViewport(0, 0, 2048, 2048);
-        glBindFramebuffer(GL_FRAMEBUFFER, heightmapFBO);
-        glClear(GL_DEPTH_BUFFER_BIT);
-        glm::mat4 heightmapProjection = glm::ortho(-heightmap_width / 2, heightmap_width / 2, -heightmap_height / 2, heightmap_height / 2, -1.f, 1.f), 
-                  heightmapView = glm::lookAt(glm::vec3(0.f, 0.01f, 0.f), glm::vec3(0.f, 1.f, 0.f), glm::vec3(0.f, 0.f, 1.f));
-        heightmapDepthRenderer.Activate(heightmapView, heightmapProjection);
-        heightmapDepthRenderer.SetTexture(snowTexture);
-        heightmapDepthRenderer.SetViewportSize(glm::vec2(2048, 2048));
-        heightmapDepthRenderer.SetPreviousFrame(previousFrameHeightmap);
-        
-        /// HACK: drawing a quad on the maximum depth frame to let the fragment
-        ///       shader pass on each pixel of the texture
-        glm::mat4 quadTrasformation = glm::scale(glm::mat4(1.f), glm::vec3(heightmap_width / 2, 1.0f, heightmap_height / 2));
-        quadTrasformation = glm::translate(quadTrasformation, glm::vec3(0.f, 1.f, 0.f));
-        quadTrasformation = glm::rotate(quadTrasformation, glm::radians(90.f), glm::vec3(1.f, 0.f, 0.f));
-        heightmapDepthRenderer.SetModelTrasformation(quadTrasformation);
-        drawQuad();
-
-        renderObjects(heightmapDepthRenderer);
-        previousFrameHeightmap.CopyFromCurrentFrameBuffer();
 
         // render the standard scene
         // reset the framebuffer to main buffer application
@@ -762,23 +802,20 @@ int main()
 
         // activate the heightmap renderer with the view/projection transformations of the camera
         heightmapRenderer.Activate(view, projection);
-
         // set the shadowmap        
         heightmapRenderer.SetShadowMap(shadowMap, lightView, lightProjection);
-
+        heightmapRenderer.SetLightDirection(renderer.illumination.lightDirection);
         // depth frame buffer
         heightmapRenderer.SetDepthTexture(heightmapTexture);
+        renderHeightmap(heightmapRenderer);
 
-        // plane texture
-        heightmapRenderer.SetTexture(snowTexture);
-        // drawing the heightmap, for now is positioned with the center at
-        glm::mat4 model = glm::mat4(1.0f);
-        heightmapRenderer.SetModelTrasformation(model);
-        heightmap.Draw();
+        // update and always draw snow particles
+        snowEmitter->Update(deltaTime);
+        snowParticleRenderer.Activate(view, projection);
+        snowParticleRenderer.Draw();
 
-        // update all particles
+        // update all particles for turbo
         emitter->Update(deltaTime);
-
         if(emitter->Active) {
             particleRenderer.Activate(view, projection);
             /// draw particles using the particle renderer
@@ -877,6 +914,7 @@ int main()
     shadowRenderer.Delete();
     heightmapDepthRenderer.Delete();
     heightmapRenderer.Delete();
+    snowParticleRenderer.Delete();
     particleRenderer.Delete();
     postprocessing_shader.Delete();
     // we delete the data of the physical simulation

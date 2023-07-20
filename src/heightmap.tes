@@ -9,18 +9,26 @@ uniform mat4 projectionMatrix;
 
 uniform mat4 lightProjection;
 uniform mat4 lightView;
+// light direction in world coordinate
+uniform vec3 lightVector;
 
 uniform float heightmapHeight = 1;
 uniform float heightmapY = -1;
 
 in vec2 texCoords[];
 
-// send height to the fragment shader
+// the height of this point in world space
 out float Height;
+// the height of the heightmap sampled from the texture (from 0 to 1)
+out float h;
 
 out vec2 interp_UV;
 
 out vec4 lightFragPosition;
+
+// normalized light direction in view space
+out vec3 lightDir;
+
 
 
 ////////////////////////////////////////////////////////////////////
@@ -145,7 +153,8 @@ void main()
 
     // lookup texel at patch coordinate for height and scale + shift as desired
     float bias = 0.08;
-    Height = texture(tex, interp_UV).r * heightmapHeight + heightmapY + bias;
+    h = texture(tex, interp_UV).r;
+    Height = h * heightmapHeight + heightmapY + bias;
 
     // retrieve control point position coordinates
     vec4 p00 = gl_in[0].gl_Position;
@@ -169,5 +178,7 @@ void main()
     // output patch point position in clip space
     vec4 mPosition = modelMatrix * p;
     gl_Position = projectionMatrix * viewMatrix * mPosition;
+    // light incidence direction (in view coordinate, normalized)
+    lightDir = (lightVector);
     lightFragPosition = lightProjection * lightView * mPosition;
 }

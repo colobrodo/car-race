@@ -11,6 +11,12 @@ uniform sampler2D imageTex;
 uniform sampler2DShadow shadowMap;
 
 in vec4 lightFragPosition;
+in vec3 lightDir;
+// the height of the map in world space 
+in float Height;
+// relative height
+// the height depth from 0 to 1 (directly sampled from the texture)
+in float h;
 
 
 vec2 poissonDisk[4] = vec2[](
@@ -42,13 +48,47 @@ float calculateShadow() {
 }
 
 void main() {
-    // float h;
-    // h = texture(tex, interp_UV).r;
-    // vec3 white = vec3(1.0, 1.0, 1.0);
-    // vec3 color = mix(bottomColor, white, h);
+    // interpolation of two color based on relative height (used for debugging)
+    vec3 topColor = texture(imageTex, interp_UV).rgb;
+    vec3 bottomColor = vec3(1, 0, 0);
+    /*
+    // pcf on the heightmap
+    vec2 texelSize = 1.0 / textureSize(tex, 0);
+    for(int i = -1; i <= 1; i++) {
+        float dx = i * texelSize.x;
+        for(int j = -1; j <= 1; j++) {
+            float dy = j * texelSize.x;
+            vec2 close_uv = interp_UV + vec2(dx, dy);
+            h += texture(tex, interp_UV).r;
+        }
+    }
+    h /= 9;
+    vec3 color = mix(bottomColor, topColor, h);
+    */
+
+    float shadowFactor = calculateShadow();
+
+    // setting color interpolation
+    vec3 color = topColor * mix(.7, 1, h) * shadowFactor;
     
-    float shadowFactor = calculateShadow();;
+    /*
+    // check if some of the texels in the direction of the light are occluding it
+    // simply if the y coordinate is greater
+    // looping and branching in the fragment: inefficent
+    vec2 off = lightDir.xz / 50;
+    for(float k = 0; k <= 1; k += .05) {
+        vec2 occlusionPoint = interp_UV + off * k;
+        float heightOfOcclusion = texture(tex, occlusionPoint).r;
+        float heightOfLightRay  = h + lightDir.y * k;
+        if(heightOfOcclusion > heightOfLightRay) {
+            // occluded light 
+            shadowFactor -= .8;
+            break;
+        }
+    }
+    shadowFactor = max(shadowFactor, 0);
     vec4 color = texture(imageTex, interp_UV) * shadowFactor;
-    FragColor = vec4(color.rgb, 1.0);
+    */
     
+    FragColor = vec4(color.rgb, 1.0);
 }
