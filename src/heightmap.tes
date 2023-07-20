@@ -134,6 +134,21 @@ float snoise(vec3 v) {
 }
 
 
+float cpf(sampler2D tex, vec2 coord) {
+  float k;
+  vec2 texelSize = 1.0 / textureSize(tex, 0);
+  for(int i = -1; i <= 1; i++) {
+      float dx = i * texelSize.x;
+      for(int j = -1; j <= 1; j++) {
+          float dy = j * texelSize.x;
+          vec2 close_uv = coord + vec2(dx, dy);
+          k += texture(tex, close_uv).r;
+      }
+  }
+  k /= 9;
+  return k;
+}
+
 void main()
 {
     // get patch coordinate
@@ -151,10 +166,14 @@ void main()
     vec2 t1 = (t11 - t10) * u + t10;
     interp_UV = (t1 - t0) * v + t0;
 
+    
+    // small value in order to never show the ground under the snow
+    float bias = 0.11;
     // lookup texel at patch coordinate for height and scale + shift as desired
-    float bias = 0.08;
-    h = texture(tex, interp_UV).r;
-    Height = h * heightmapHeight + heightmapY + bias;
+    // h = texture(tex, interp_UV).r;
+    h = cpf(tex, interp_UV);
+    float noise = snoise(interp_UV.xyx * 10) * .1;
+    Height = max(bias, h + noise) * heightmapHeight + heightmapY;
 
     // retrieve control point position coordinates
     vec4 p00 = gl_in[0].gl_Position;
