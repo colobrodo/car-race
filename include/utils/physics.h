@@ -68,6 +68,56 @@ public:
         return body;
     }
 
+    btRigidBody* createRigidBodyFromMesh(Mesh &mesh, glm::vec3 pos, glm::vec3 rot) {
+
+        auto triangleMesh = new btTriangleMesh();
+        for(auto &vertex: mesh.vertices) {
+            auto pos = vertex.Position;
+            triangleMesh->findOrAddVertex(btVector3(pos.x, pos.y, pos.z), false);
+        }
+        printf("Added vertices to bullet mesh\n");
+
+        for(int i = 0; i < mesh.indices.size(); i += 3) {
+            triangleMesh->addTriangleIndices(mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
+        }
+        printf("Added triangle indices\n");
+
+        auto cShape = new btBvhTriangleMeshShape(triangleMesh, true, true);
+        this->collisionShapes.push_back(cShape);
+        printf("Saved collision shape to the mesh\n");
+
+        // we set a quaternion from the Euler angles passed as parameters
+        btQuaternion rotation;
+        rotation.setEuler(rot.x, rot.y, rot.z);
+        btVector3 position(pos.x, pos.y, pos.z);
+
+        // We set the initial transformations
+        btTransform objTransform;
+        objTransform.setIdentity();
+        objTransform.setRotation(rotation);
+        // we set the initial position (it must be equal to the position of the corresponding model of the scene)
+        objTransform.setOrigin(position);
+
+        // if it is dynamic (mass > 0) then we calculates local inertia
+        btVector3 localInertia(0.0f, 0.0f, 0.0f);
+
+        // we initialize the Motion State of the object on the basis of the transformations
+        // using the Motion State, the physical simulation will calculate the positions and rotations of the rigid body
+        btDefaultMotionState* motionState = new btDefaultMotionState(objTransform);
+        // we set the data structure for the rigid body, mass is always 0 for mesh object (bullet)
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(0.f, motionState, cShape, localInertia);
+        // we create the rigid body
+        btRigidBody* body = new btRigidBody(rbInfo);
+        printf("Created rigid body\n");
+
+        //add the body to the dynamics world
+        this->dynamicsWorld->addRigidBody(body);
+
+        // the function returns a pointer to the created rigid body
+        // in a standard simulation (e.g., only objects falling), it is not needed to have a reference to a single rigid body, but in some cases (e.g., the application of an impulse), it is needed.
+        return body;
+    }
+
     //////////////////////////////////////////
     // Method for the creation of a rigid body, based on a Box or Sphere Collision Shape
     // The Collision Shape is a reference solid that approximates the shape of the actual object of the scene. The Physical simulation is applied to these solids, and the rotations and positions of these solids are used on the real models.

@@ -66,7 +66,9 @@ void main() {
     vec3 color = mix(bottomColor, topColor, h);
     */
 
-    float shadowFactor = calculateShadow();
+    // reducing the shadow factor a bit for a shadow non total black that leave
+    // objects visible
+    float shadowFactor = mix(.2, 1, calculateShadow());
 
     // setting color interpolation
     vec3 color = topColor * mix(.7, 1, h) * shadowFactor;

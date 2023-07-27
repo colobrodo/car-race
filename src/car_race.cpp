@@ -145,6 +145,7 @@ Model *cubeModel;
 Model *sphereModel;
 Model *cylinderModel;
 Model *carModel;
+Model *bridgeModel;
 
 
 void drawQuad() {
@@ -433,6 +434,7 @@ int main()
     sphereModel = new Model("../models/sphere.obj");
     carModel = new Model("../models/mclaren.obj");
     cylinderModel = new Model("../models/cylinder.obj");
+    bridgeModel = new Model("../models/stone_bridge.obj");
 
     // screen quad VAO
     glGenVertexArrays(1, &quadVAO);
@@ -455,6 +457,10 @@ int main()
     // we create a rigid body for the plane. In this case, it is static, so we pass mass = 0;
     // in this way, the plane will not fall following the gravity force.
     btRigidBody *plane = bulletSimulation.createRigidBody(BOX, plane_pos, plane_size, plane_rot, 0.0f, 0.3f, 0.3f);
+    
+    /// TODO:
+    glm::vec3 bridgePos(0.f, -1.f, 10.f);
+    btRigidBody *bridge = bulletSimulation.createRigidBodyFromMesh(bridgeModel->meshes[0], bridgePos, plane_rot);
 
     /// create particles emitter for snow
     auto totalParticles = 1500;
@@ -487,6 +493,7 @@ int main()
 
 
     /// create particles emitter for turbo machine
+    totalParticles = 500;
     auto emitter = new ParticleEmitter(totalParticles);
     {
         // set the random variables
@@ -561,6 +568,8 @@ int main()
     // Model and Normal transformation matrices for the objects in the scene: we set to identity
     glm::mat4 objModelMatrix = glm::mat4(1.0f);
     // textures for plane
+    ImageTexture brickTexture("../textures/bricks.jpg");
+    ImageTexture brickNormalMap("../textures/bricks_NormalMap.jpg");
     ImageTexture planeTexture("../textures/DirtFloor.jpg");
     ImageTexture planeNormalMap("../textures/DirtFloor_NormalMap.png");
     ImageTexture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
@@ -626,6 +635,16 @@ int main()
 
             drawRigidBody(objectRenderer, body);
         }
+
+        glm::mat4 bridgeModelMatrix(1.0f);
+        // bridgeModelMatrix = glm::rotate(bridgeModelMatrix, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
+        //bridgeModelMatrix = glm::translate(bridgeModelMatrix, glm::vec3(0.f, 0.f, 0.f));
+        bridgeModelMatrix = glm::translate(bridgeModelMatrix, bridgePos);
+        //bridgeModelMatrix = glm::scale(bridgeModelMatrix, glm::vec3(1.f, 1.f, 1.f));
+        objectRenderer.SetTexture(brickTexture, 4.f);
+        objectRenderer.SetNormalMap(brickNormalMap);
+        objectRenderer.SetModelTrasformation(bridgeModelMatrix);
+        bridgeModel->Draw();
     };
 
     auto renderHeightmap = [&](ObjectRenderer &objectRenderer) {

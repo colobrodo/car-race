@@ -320,7 +320,7 @@ vec3 GGX(vec3 diffuseColor) // this name is the one which is detected by the Set
     }
 
     // getting the shadow
-    float shadow = calculateShadow();
+    float shadow = mix(.2, 1, calculateShadow());
 
     // the rendering equation is:
     // integral of: BRDF * Li * (cosine angle between N and L)
