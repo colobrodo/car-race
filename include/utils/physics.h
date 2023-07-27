@@ -75,16 +75,13 @@ public:
             auto pos = vertex.Position;
             triangleMesh->findOrAddVertex(btVector3(pos.x, pos.y, pos.z), false);
         }
-        printf("Added vertices to bullet mesh\n");
 
         for(int i = 0; i < mesh.indices.size(); i += 3) {
             triangleMesh->addTriangleIndices(mesh.indices[i], mesh.indices[i + 1], mesh.indices[i + 2]);
         }
-        printf("Added triangle indices\n");
 
         auto cShape = new btBvhTriangleMeshShape(triangleMesh, true, true);
         this->collisionShapes.push_back(cShape);
-        printf("Saved collision shape to the mesh\n");
 
         // we set a quaternion from the Euler angles passed as parameters
         btQuaternion rotation;
@@ -108,7 +105,6 @@ public:
         btRigidBody::btRigidBodyConstructionInfo rbInfo(0.f, motionState, cShape, localInertia);
         // we create the rigid body
         btRigidBody* body = new btRigidBody(rbInfo);
-        printf("Created rigid body\n");
 
         //add the body to the dynamics world
         this->dynamicsWorld->addRigidBody(body);

@@ -458,9 +458,11 @@ int main()
     // in this way, the plane will not fall following the gravity force.
     btRigidBody *plane = bulletSimulation.createRigidBody(BOX, plane_pos, plane_size, plane_rot, 0.0f, 0.3f, 0.3f);
     
-    /// TODO:
     glm::vec3 bridgePos(0.f, -1.f, 10.f);
-    btRigidBody *bridge = bulletSimulation.createRigidBodyFromMesh(bridgeModel->meshes[0], bridgePos, plane_rot);
+    // creating a rigid body for each mesh of the model
+    for(auto &mesh: bridgeModel->meshes) {
+        bulletSimulation.createRigidBodyFromMesh(mesh, bridgePos, plane_rot);
+    }
 
     /// create particles emitter for snow
     auto totalParticles = 1500;
@@ -560,7 +562,7 @@ int main()
     bulletSimulation.createRigidBody(BOX, glm::vec3(-10.f, -2.f, 0.f), glm::vec3(3.f), glm::vec3(0.f, 0.f, glm::radians(60.f)), 0, 0.3f, 0.3f);
 
     // we set the maximum delta time for the update of the physical simulation
-    GLfloat maxSecPerFrame = 1.0f / 60.0f;
+    GLfloat maxSecPerFrame = 1.0f / 120.0f;
 
     // Projection matrix: FOV angle, aspect ratio, near and far planes
     projection = glm::perspective(45.0f, (float)screenWidth/(float)screenHeight, 0.1f, 10000.0f);
@@ -637,12 +639,9 @@ int main()
         }
 
         glm::mat4 bridgeModelMatrix(1.0f);
-        // bridgeModelMatrix = glm::rotate(bridgeModelMatrix, glm::radians(90.f), glm::vec3(0.f, 1.f, 0.f));
-        //bridgeModelMatrix = glm::translate(bridgeModelMatrix, glm::vec3(0.f, 0.f, 0.f));
         bridgeModelMatrix = glm::translate(bridgeModelMatrix, bridgePos);
-        //bridgeModelMatrix = glm::scale(bridgeModelMatrix, glm::vec3(1.f, 1.f, 1.f));
-        objectRenderer.SetTexture(brickTexture, 4.f);
-        objectRenderer.SetNormalMap(brickNormalMap);
+        // objectRenderer.SetTexture(brickTexture, 4.f);
+        // objectRenderer.SetNormalMap(brickNormalMap);
         objectRenderer.SetModelTrasformation(bridgeModelMatrix);
         bridgeModel->Draw();
     };
@@ -695,8 +694,8 @@ int main()
         // Check is an I/O event is happening
         glfwPollEvents();
 
-        // if the is more fast then 75 km/h we activate the turbo using the particle system
-        emitter->Active = vehicle.GetSpeed() > 75.f;
+        // if the is more fast then 100 km/h we activate the turbo using the particle system
+        emitter->Active = vehicle.GetSpeed() > 100.f;
 
         // let the camera follow the vehicle
         updateCameraPosition(vehicle, camera, cameraOffset, deltaTime);
@@ -748,12 +747,12 @@ int main()
         vehicle.Update(deltaTime);
         
         // we update the physics simulation. We must pass the deltatime to be used for the update of the physical state of the scene.
-        // Bullet works with a default timestep of 60 Hz (1/60 seconds). For smaller timesteps (i.e., if the current frame is computed faster than 1/60 seconds), Bullet applies interpolation rather than actual simulation.
-        // In this example, we use deltatime from the last rendering: if it is < 1\60 sec, then we use it (thus "forcing" Bullet to apply simulation rather than interpolation), otherwise we use the default timestep (1/60 seconds) we have set above
+        // Bullet works with a default timestep of 120 Hz (1/120 seconds). For smaller timesteps (i.e., if the current frame is computed faster than 1/120 seconds), Bullet applies interpolation rather than actual simulation.
+        // In this example, we use deltatime from the last rendering: if it is < 1\120 sec, then we use it (thus "forcing" Bullet to apply simulation rather than interpolation), otherwise we use the default timestep (1/120 seconds) we have set above
         // We also set the max number of substeps to consider for the simulation (=10)
         // The "correct" values to set up the timestep depends on the characteristics and complexity of the physical simulation, the amount of time spent for the other computations (e.g., complex shading), etc.
         // For example, this example, with limited lighting, simple materials, no texturing, works correctly even setting:
-        // bulletSimulation.dynamicsWorld->stepSimulation(1.0/60.0,10);
+        // bulletSimulation.dynamicsWorld->stepSimulation(1.0/120.0,10);
         bulletSimulation.dynamicsWorld->stepSimulation((deltaTime < maxSecPerFrame ? deltaTime : maxSecPerFrame), 10);
 
         // reactivate depth test
