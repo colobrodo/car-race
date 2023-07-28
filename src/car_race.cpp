@@ -146,6 +146,8 @@ Model *sphereModel;
 Model *cylinderModel;
 Model *carModel;
 Model *bridgeModel;
+Model *rampModel;
+Model *bowlingPinModel;
 
 
 void drawQuad() {
@@ -205,7 +207,6 @@ void updateEmitterPosition(Vehicle vehicle, ParticleEmitter *emitter, float delt
     emitter->Position = toGLM(targetPosition);
 }
 
-// TODO: light bug (not happen if the function is "inlined")
 void drawRigidBody(ObjectRenderer &renderer, btRigidBody *body) {
     Model *objectModel;
 
@@ -412,7 +413,7 @@ int main()
 
     MeshRenderer renderer;
     /// Uniforms for the illumination model
-    renderer.illumination.lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
+    renderer.lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
     renderer.illumination.Kd = 3.0f;
     renderer.illumination.alpha = 0.6f;
     renderer.illumination.F0 = 0.9f;
@@ -435,6 +436,8 @@ int main()
     carModel = new Model("../models/mclaren.obj");
     cylinderModel = new Model("../models/cylinder.obj");
     bridgeModel = new Model("../models/stone_bridge.obj");
+    rampModel = new Model("../models/ramp.obj");
+    bowlingPinModel = new Model("../models/bowling_pin.obj");
 
     // screen quad VAO
     glGenVertexArrays(1, &quadVAO);
@@ -463,6 +466,28 @@ int main()
     for(auto &mesh: bridgeModel->meshes) {
         bulletSimulation.createRigidBodyFromMesh(mesh, bridgePos, plane_rot);
     }
+
+    glm::vec3 rampPos(20.f, -1.f, -10.f);
+    glm::vec3 rampDim(10.f, 10.f, 10.f);
+    // creating a rigid body for each mesh of the model
+    for(auto &mesh: rampModel->meshes) {
+        bulletSimulation.createRigidBodyFromMesh(mesh, rampPos, plane_rot, rampDim);
+    }
+
+    std::vector<glm::mat4> pinsTrasformations;
+    for(int i = 0; i < 10; i += 1) {
+        glm::vec3 pinPos(20.f + i * 2.f, -1.f, 0.f);
+        glm::vec3 pinDim(10.f, 10.f, 10.f);
+        glm::mat4 pinModelMatrix(1.0f);
+        pinModelMatrix = glm::translate(pinModelMatrix, pinPos);
+        pinModelMatrix = glm::scale(pinModelMatrix, pinDim);
+        // creating a rigid body for each mesh of the model
+        for(auto &mesh: bowlingPinModel->meshes) {
+            bulletSimulation.createRigidBodyFromMesh(mesh, pinPos, plane_rot, pinDim);
+        }
+        pinsTrasformations.push_back(pinModelMatrix);
+    }
+
 
     /// create particles emitter for snow
     auto totalParticles = 1500;
@@ -529,8 +554,12 @@ int main()
     // default wheel infos
     WheelInfo wheelInfo;
     Vehicle vehicle(chassisBox, wheelInfo);
+    IlluminationModelParameter carIlluminationParameter;
+    carIlluminationParameter.Kd = 3.0f;
+    carIlluminationParameter.alpha = 0.6f;
+    carIlluminationParameter.F0 = 0.9f;
 
-    // TODO: to remove, generalize to obstacle array
+
     // we create 25 rigid bodies for the cubes of the scene. In this case, we use BoxShape, with the same dimensions of the cubes, as collision shape of Bullet. For more complex cases, a Bounding Box of the model may have to be calculated, and its dimensions to be passed to the physics library
     GLint num_side = 5;
     // total number of the cubes
@@ -592,7 +621,7 @@ int main()
     // create heightmap frame buffer object
     GLuint heightmapFBO;
     glGenFramebuffers(1, &heightmapFBO);
-    float heightmap_width = 50, heightmap_height = 50;
+    float heightmap_width = 100, heightmap_height = 100;
     DepthTexture previousFrameHeightmap(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
     previousFrameHeightmap.Clear();
     DepthTexture heightmapTexture(HEIGHTMAP_SIZE, HEIGHTMAP_SIZE);
@@ -638,17 +667,33 @@ int main()
             drawRigidBody(objectRenderer, body);
         }
 
+        // draw the bridge
         glm::mat4 bridgeModelMatrix(1.0f);
         bridgeModelMatrix = glm::translate(bridgeModelMatrix, bridgePos);
         // objectRenderer.SetTexture(brickTexture, 4.f);
         // objectRenderer.SetNormalMap(brickNormalMap);
         objectRenderer.SetModelTrasformation(bridgeModelMatrix);
         bridgeModel->Draw();
+        
+        // drawing the ramp
+        glm::mat4 rampModelMatrix(1.0f);
+        rampModelMatrix = glm::translate(rampModelMatrix, rampPos);
+        rampModelMatrix = glm::scale(rampModelMatrix, rampDim);
+        // objectRenderer.SetTexture(brickTexture, 4.f);
+        // objectRenderer.SetNormalMap(brickNormalMap);
+        objectRenderer.SetModelTrasformation(rampModelMatrix);
+        rampModel->Draw();
+        
+        // drawing the bowling pins
+        for(auto &pinModelMatrix: pinsTrasformations) {
+            objectRenderer.SetModelTrasformation(pinModelMatrix);
+            bowlingPinModel->Draw();
+        }
     };
 
     auto renderHeightmap = [&](ObjectRenderer &objectRenderer) {
         // plane texture
-        objectRenderer.SetTexture(snowTexture);
+        objectRenderer.SetTexture(snowTexture, 4.f);
         // drawing the heightmap, for now is positioned with the center at
         glm::mat4 model = glm::mat4(1.0f);
         objectRenderer.SetModelTrasformation(model);
@@ -790,7 +835,7 @@ int main()
         glClear(GL_DEPTH_BUFFER_BIT);
 
         glm::mat4 lightProjection, lightView;
-        calculateShadowMapViewFrustum(view, projection, renderer.illumination.lightDirection, &lightView, &lightProjection);
+        calculateShadowMapViewFrustum(view, projection, renderer.lightDirection, &lightView, &lightProjection);
 
         shadowRenderer.Activate(lightView, lightProjection);
         renderScene(shadowRenderer);
@@ -822,7 +867,7 @@ int main()
         heightmapRenderer.Activate(view, projection);
         // set the shadowmap        
         heightmapRenderer.SetShadowMap(shadowMap, lightView, lightProjection);
-        heightmapRenderer.SetLightDirection(renderer.illumination.lightDirection);
+        heightmapRenderer.SetLightDirection(renderer.lightDirection);
         // depth frame buffer
         heightmapRenderer.SetDepthTexture(heightmapTexture);
         renderHeightmap(heightmapRenderer);
@@ -888,7 +933,7 @@ int main()
             /// Options for camera
             ImGui::Begin("Illuminance Model");
             auto &illumination = renderer.illumination;
-            ImGui::SliderFloat3("Position", glm::value_ptr(illumination.lightDirection), -1.f, 1.f);
+            ImGui::SliderFloat3("Position", glm::value_ptr(renderer.lightDirection), -1.f, 1.f);
             ImGui::SliderFloat("Diffusive component weight", &illumination.Kd, 0.f, 10.f);
             ImGui::SliderFloat("Roughness", &illumination.alpha, 0.01f, 1.f);
             ImGui::SliderFloat("Fresnel reflectance", &illumination.F0, 0.01f, 1.f);
@@ -941,9 +986,14 @@ int main()
     // clear the particle emitter
     emitter->Delete();
 
+    // delete all the models
     delete cubeModel;
     delete sphereModel;
     delete cylinderModel;
+    delete carModel;
+    delete bridgeModel;
+    delete rampModel;
+    delete bowlingPinModel;
     // we close and delete the created context
     glfwTerminate();
     return 0;

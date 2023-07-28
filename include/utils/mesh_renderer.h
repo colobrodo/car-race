@@ -9,8 +9,6 @@
 #include "shader.h";
 
 struct IlluminationModelParameter {
-    // point light position
-    glm::vec3 lightDirection;
     // weight for the diffusive component
     float Kd;
     // Fresnel reflectance at 0 degree (Schlik's approximation)
@@ -137,7 +135,21 @@ public:
         setTexCoordinateSubroutine(subroutineName);
     }
 
+    void UpdateIlluminationModel() {
+        GLint lightDirLocation = glGetUniformLocation(shader->Program, "lightVector");
+        GLint kdLocation = glGetUniformLocation(shader->Program, "Kd");
+        GLint alphaLocation = glGetUniformLocation(shader->Program, "alpha");
+        GLint f0Location = glGetUniformLocation(shader->Program, "F0");
+        // we assign the values of the illumination model to the uniform variable
+        glUniform3fv(lightDirLocation, 1, glm::value_ptr(lightDirection));
+        glUniform1f(kdLocation, illumination.Kd);
+        glUniform1f(alphaLocation, illumination.alpha);
+        glUniform1f(f0Location, illumination.F0);
+    }
+
     IlluminationModelParameter illumination;
+    // point light position
+    glm::vec3 lightDirection;
 private:
     void setPatternSubroutine(char *subroutineName) {
         GLuint patternSubroutine = glGetSubroutineIndex(shader->Program, GL_FRAGMENT_SHADER, subroutineName);
@@ -158,18 +170,6 @@ private:
         subroutines[2] = patternSubroutine;
         // we activate the subroutine using the index (this is where shaders swapping happens)
         glUniformSubroutinesuiv(GL_FRAGMENT_SHADER, 4, subroutines);
-    }
-
-    void UpdateIlluminationModel() {
-        GLint lightDirLocation = glGetUniformLocation(shader->Program, "lightVector");
-        GLint kdLocation = glGetUniformLocation(shader->Program, "Kd");
-        GLint alphaLocation = glGetUniformLocation(shader->Program, "alpha");
-        GLint f0Location = glGetUniformLocation(shader->Program, "F0");
-        // we assign the values of the illumination model to the uniform variable
-        glUniform3fv(lightDirLocation, 1, glm::value_ptr(illumination.lightDirection));
-        glUniform1f(kdLocation, illumination.Kd);
-        glUniform1f(alphaLocation, illumination.alpha);
-        glUniform1f(f0Location, illumination.F0);
     }
 
     glm::mat4 view;

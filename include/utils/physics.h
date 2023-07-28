@@ -68,12 +68,12 @@ public:
         return body;
     }
 
-    btRigidBody* createRigidBodyFromMesh(Mesh &mesh, glm::vec3 pos, glm::vec3 rot) {
+    btRigidBody* createRigidBodyFromMesh(Mesh &mesh, glm::vec3 pos, glm::vec3 rot, glm::vec3 scale=glm::vec3(1.f, 1.f, 1.f)) {
 
         auto triangleMesh = new btTriangleMesh();
         for(auto &vertex: mesh.vertices) {
-            auto pos = vertex.Position;
-            triangleMesh->findOrAddVertex(btVector3(pos.x, pos.y, pos.z), false);
+            auto vertexPos = vertex.Position;
+            triangleMesh->findOrAddVertex(btVector3(vertexPos.x, vertexPos.y, vertexPos.z), false);
         }
 
         for(int i = 0; i < mesh.indices.size(); i += 3) {
@@ -81,6 +81,7 @@ public:
         }
 
         auto cShape = new btBvhTriangleMeshShape(triangleMesh, true, true);
+        cShape->setLocalScaling(btVector3(scale.x, scale.y, scale.z));
         this->collisionShapes.push_back(cShape);
 
         // we set a quaternion from the Euler angles passed as parameters

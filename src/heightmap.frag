@@ -7,6 +7,7 @@ in vec2 interp_UV;
 uniform sampler2D tex;
 // image texture to draw
 uniform sampler2D imageTex;
+uniform float repeat;
 // shadows
 uniform sampler2DShadow shadowMap;
 
@@ -49,9 +50,10 @@ float calculateShadow() {
 
 void main() {
     // interpolation of two color based on relative height (used for debugging)
-    vec3 topColor = texture(imageTex, interp_UV).rgb;
-    vec3 bottomColor = vec3(1, 0, 0);
+    vec2 uv = fract(interp_UV * repeat);
+    vec3 topColor = texture(imageTex, uv).rgb;
     /*
+    vec3 bottomColor = vec3(1, 0, 0);
     // pcf on the heightmap
     vec2 texelSize = 1.0 / textureSize(tex, 0);
     for(int i = -1; i <= 1; i++) {
