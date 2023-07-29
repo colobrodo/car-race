@@ -23,11 +23,11 @@ enum TextureCoordinateCalculation {
 
 struct IlluminationModelParameters {
     // weight for the diffusive component
-    float Kd;
+    float Kd = 3.f;
     // Fresnel reflectance at 0 degree (Schlik's approximation)
-    float F0;
+    float F0 = .9f;
     // roughness index for GGX shader
-    float alpha;
+    float alpha = .6f;
 };
 
 class ObjectRenderer: public Renderer {

@@ -25,7 +25,7 @@ class Physics
 {
 public:
     // from https://stackoverflow.com/questions/1008019/c-singleton-design-pattern
-    static Physics& getInstance()
+    static Physics& GetInstance()
     {
         // Instantiated on first use
         static Physics instance; // Guaranteed to be destroyed

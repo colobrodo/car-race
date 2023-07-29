@@ -25,7 +25,7 @@ public:
     Vehicle(const glm::vec3 &chassisBoxSize, const WheelInfo &wheelInfo): WheelInfo(wheelInfo), vehicle(vehicle) {
         btTransform tr;
         chassisBox = btVector3(chassisBoxSize.x, chassisBoxSize.y, chassisBoxSize.z);
-        Physics &bulletSimulation = Physics::getInstance();
+        Physics &bulletSimulation = Physics::GetInstance();
         btCollisionShape *chassisShape = new btBoxShape(chassisBox);
         Chassis = bulletSimulation.localCreateRigidBody(800, tr, chassisShape);
         auto vehicleRayCaster = new btDefaultVehicleRaycaster(bulletSimulation.dynamicsWorld);
@@ -112,7 +112,7 @@ public:
         // reset the timer
         shootTimer = ShootCooldown;
 
-        Physics &bulletSimulation = Physics::getInstance();
+        Physics &bulletSimulation = Physics::GetInstance();
 
         // we need a initial rotation, even if useless for a sphere
         glm::vec3 rot = glm::vec3(0.0f, 0.0f, 0.0f);

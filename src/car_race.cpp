@@ -63,6 +63,7 @@ positive Z axis points "outside" the screen
 #include <utils/camera.h>
 #include <utils/physics.h>
 #include <utils/vehicle.h>
+#include <utils/obstacle.h>
 
 #include <utils/particle.h>
 
@@ -147,6 +148,7 @@ Model *cylinderModel;
 Model *carModel;
 Model *bridgeModel;
 Model *rampModel;
+Model *skateParkModel;
 Model *bowlingPinModel;
 
 
@@ -409,7 +411,7 @@ int main()
     glClearColor(0.26f, 0.46f, 0.98f, 1.0f);
 
     // instance of the physics class
-    Physics &bulletSimulation = Physics::getInstance();
+    Physics &bulletSimulation = Physics::GetInstance();
 
     MeshRenderer renderer;
     renderer.lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -438,6 +440,7 @@ int main()
     cylinderModel = new Model("../models/cylinder.obj");
     bridgeModel = new Model("../models/stone_bridge.obj");
     rampModel = new Model("../models/ramp.obj");
+    skateParkModel = new Model("../models/skatepark_ramp.obj");
     bowlingPinModel = new Model("../models/bowling_pin.obj");
 
     // screen quad VAO
@@ -463,17 +466,17 @@ int main()
     btRigidBody *plane = bulletSimulation.createRigidBody(BOX, plane_pos, plane_size, plane_rot, 0.0f, 0.3f, 0.3f);
     
     glm::vec3 bridgePos(0.f, -1.f, 10.f);
-    // creating a rigid body for each mesh of the model
-    for(auto &mesh: bridgeModel->meshes) {
-        bulletSimulation.createRigidBodyFromMesh(mesh, bridgePos, plane_rot);
-    }
+    Obstacle bridge(bridgeModel, bridgePos);
+
+    glm::vec3 spPos(40.f, -1.8f, -30.f);
+    Obstacle skatePark(skateParkModel, spPos);
 
     glm::vec3 rampPos(20.f, -1.f, -10.f);
     glm::vec3 rampDim(10.f, 10.f, 10.f);
-    // creating a rigid body for each mesh of the model
-    for(auto &mesh: rampModel->meshes) {
-        bulletSimulation.createRigidBodyFromMesh(mesh, rampPos, plane_rot, rampDim);
-    }
+    Obstacle ramp(rampModel, rampPos, rampDim);
+    ramp.Illumination.Kd = 3.f;
+    ramp.Illumination.alpha = .3f;
+    ramp.Illumination.F0 = .9f;
 
     std::vector<btRigidBody*> pins;
     glm::vec3 pinDim(10.f, 10.f, 10.f);
@@ -605,6 +608,8 @@ int main()
     ImageTexture planeNormalMap("../textures/DirtFloor_NormalMap.png");
     ImageTexture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
     ImageTexture snowTexture("../textures/snow.jpg");
+    ImageTexture asphaltTexture("../textures/Asphalt.jpg");
+    ImageTexture asphaltNormalMap("../textures/Asphalt_NormalMap.jpg");
     // ImageTexture planeTexture("../textures/Stone.jpg");
     // ImageTexture planeNormalMap("../textures/Stone_NormalMap.jpg");
     // ImageTexture planeDisplacementMap("../textures/Stone_DispMap.jpg");
@@ -673,21 +678,17 @@ int main()
         }
 
         // draw the bridge
-        glm::mat4 bridgeModelMatrix(1.0f);
-        bridgeModelMatrix = glm::translate(bridgeModelMatrix, bridgePos);
-        // objectRenderer.SetTexture(brickTexture, 4.f);
-        // objectRenderer.SetNormalMap(brickNormalMap);
-        objectRenderer.SetModelTrasformation(bridgeModelMatrix);
-        bridgeModel->Draw();
+        bridge.Draw(objectRenderer);
         
         // drawing the curved ramp
-        glm::mat4 rampModelMatrix(1.0f);
-        rampModelMatrix = glm::translate(rampModelMatrix, rampPos);
-        rampModelMatrix = glm::scale(rampModelMatrix, rampDim);
-        // objectRenderer.SetTexture(brickTexture, 4.f);
-        // objectRenderer.SetNormalMap(brickNormalMap);
-        objectRenderer.SetModelTrasformation(rampModelMatrix);
-        rampModel->Draw();
+        objectRenderer.SetTexture(asphaltTexture, 2.f);
+        objectRenderer.SetNormalMap(asphaltNormalMap);
+        ramp.Draw(objectRenderer);
+
+        // reset colors for remaining obstacles
+        objectRenderer.SetColor(glm::vec3(1.f, 0.f, 0.f));
+        // drawing the skate park
+        skatePark.Draw(objectRenderer);
         
         // drawing the bowling pins
         float matrix[16];
@@ -944,9 +945,9 @@ int main()
             /// Options for ggx material parameter
             ImGui::Begin("Illuminance Model");
             ImGui::SliderFloat3("Position", glm::value_ptr(renderer.lightDirection), -1.f, 1.f);
-            ImGui::SliderFloat("Diffusive component weight", &carIlluminationParameter.Kd, 0.f, 10.f);
-            ImGui::SliderFloat("Roughness", &carIlluminationParameter.alpha, 0.01f, 1.f);
-            ImGui::SliderFloat("Fresnel reflectance", &carIlluminationParameter.F0, 0.01f, 1.f);
+            ImGui::SliderFloat("Diffusive component weight", &illumination.Kd, 0.f, 10.f);
+            ImGui::SliderFloat("Roughness", &illumination.alpha, 0.01f, 1.f);
+            ImGui::SliderFloat("Fresnel reflectance", &illumination.F0, 0.01f, 1.f);
             ImGui::End();
 
             /// Options for camera
@@ -1003,6 +1004,7 @@ int main()
     delete carModel;
     delete bridgeModel;
     delete rampModel;
+    delete skateParkModel;
     delete bowlingPinModel;
     // we close and delete the created context
     glfwTerminate();
