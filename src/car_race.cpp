@@ -443,6 +443,26 @@ int main()
     skateParkModel = new Model("../models/skatepark_ramp.obj");
     bowlingPinModel = new Model("../models/bowling_pin.obj");
 
+    // textures for plane
+    ImageTexture brickTexture("../textures/bricks.jpg");
+    ImageTexture brickNormalMap("../textures/bricks_NormalMap.jpg");
+    ImageTexture planeTexture("../textures/DirtFloor.jpg");
+    ImageTexture planeNormalMap("../textures/DirtFloor_NormalMap.png");
+    ImageTexture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
+    ImageTexture snowTexture("../textures/snow.jpg");
+    ImageTexture asphaltTexture("../textures/Asphalt.jpg");
+    ImageTexture asphaltNormalMap("../textures/Asphalt_NormalMap.jpg");
+    // ImageTexture planeTexture("../textures/Stone.jpg");
+    // ImageTexture planeNormalMap("../textures/Stone_NormalMap.jpg");
+    // ImageTexture planeDisplacementMap("../textures/Stone_DispMap.jpg");
+    SkyboxTexture skybox("../textures/skyboxs/default/");
+
+    // we set the maximum delta time for the update of the physical simulation
+    GLfloat maxSecPerFrame = 1.0f / 120.0f;
+
+    // Projection matrix: FOV angle, aspect ratio, near and far planes
+    projection = glm::perspective(45.0f, (float)screenWidth/(float)screenHeight, 0.1f, 10000.0f);
+
     // screen quad VAO
     glGenVertexArrays(1, &quadVAO);
     glGenBuffers(1, &quadVBO);
@@ -478,30 +498,31 @@ int main()
     ramp.Illumination.alpha = .3f;
     ramp.Illumination.F0 = .9f;
 
+    /// creating objects for boowling scene
+    glm::vec3 trianglePinPosition(-100.f, 1.f, -50.f);
     /// TODO: nice big ball
     // auto ball = bulletSimulation.createRigidBody(SPHERE, glm::vec3(-100.f, 1.f, -70.f), glm::vec3(3.f, 3.f, 3.f), glm::vec3(0, 0, 0), 5.f, .3f, 2.f);
     /// TODO: method DrawSphere
     // create ball
-    auto ball = bulletSimulation.createRigidBody(SPHERE, glm::vec3(-100.f, 1.f, -70.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(0, 0, 0), 15.f, .3f, 3.f);
+    auto ball = bulletSimulation.createRigidBody(SPHERE, glm::vec3(trianglePinPosition.x, 1.f, trianglePinPosition.z - 20.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(0, 0, 0), 15.f, .3f, 3.f);
     // create pins
     std::vector<btRigidBody*> pins;
     glm::vec3 pinDim(10.f, 10.f, 10.f);
     {
         // create all pins
         std::vector<glm::vec3> pinOffsets {
-            glm::vec3(4.f, 0.f, 0.f),
-            glm::vec3(3.f, 0.f, 1.f),
-            glm::vec3(5.f, 0.f, 1.f),
+            glm::vec3(0.f, 0.f, 0.f),
+            glm::vec3(-1.f, 0.f, 1.f),
+            glm::vec3(1.f, 0.f, 1.f),
+            glm::vec3(-2.f, 0.f, 2.f),
+            glm::vec3(0.f, 0.f, 2.f),
             glm::vec3(2.f, 0.f, 2.f),
-            glm::vec3(4.f, 0.f, 2.f),
-            glm::vec3(6.f, 0.f, 2.f),
+            glm::vec3(-3.f, 0.f, 3.f),
+            glm::vec3(-1.f, 0.f, 3.f),
             glm::vec3(1.f, 0.f, 3.f),
             glm::vec3(3.f, 0.f, 3.f),
-            glm::vec3(5.f, 0.f, 3.f),
-            glm::vec3(7.f, 0.f, 3.f),
         };
 
-        glm::vec3 trianglePinPosition(-100.f, 1.f, -50.f);
         for(int i = 0; i < 10; i += 1) {
             auto pinPos = trianglePinPosition + pinOffsets[i] * glm::vec3(1.5f, 1.f, 2.f);
             glm::mat4 pinModelMatrix(1.0f);
@@ -599,9 +620,9 @@ int main()
 
     int cubes_start_i = bulletSimulation.dynamicsWorld->getCollisionObjectArray().size();
     // we create a 5x5 grid of rigid bodies
-    for(i = 0; i < num_side; i++ )
+    for(i = 0; i < num_side; i++)
     {
-        for(j = 0; j < num_side; j++ )
+        for(j = 0; j < num_side; j++)
         {
             // position of each cube in the grid (we add 3 to x to have a bigger displacement)
             cube_pos = glm::vec3(3.0f + 5.f * i, 1.0f, j * 5.f);
@@ -611,29 +632,14 @@ int main()
     }
 
     // creating ramp
-    bulletSimulation.createRigidBody(BOX, glm::vec3(-10.f, -2.f, 0.f), glm::vec3(3.f), glm::vec3(0.f, 0.f, glm::radians(60.f)), 0, 0.3f, 0.3f);
-
-    // we set the maximum delta time for the update of the physical simulation
-    GLfloat maxSecPerFrame = 1.0f / 120.0f;
-
-    // Projection matrix: FOV angle, aspect ratio, near and far planes
-    projection = glm::perspective(45.0f, (float)screenWidth/(float)screenHeight, 0.1f, 10000.0f);
+    bulletSimulation.createRigidBody(BOX, glm::vec3(-50.f, -2.f, 0.f), glm::vec3(3.f), glm::vec3(0.f, 0.f, glm::radians(60.f)), 0, 0.3f, 0.3f);
+    // create some walls for bowling scene
+    auto wall_size = glm::vec3(.5f, .7f, 10.f); 
+    bulletSimulation.createRigidBody(BOX, glm::vec3(trianglePinPosition.x - 8.f, plane_pos.y + wall_size.y, -50.f), wall_size, glm::vec3(0.f, 0.f, 0.f), 0, 0.3f, 0.3f);
+    bulletSimulation.createRigidBody(BOX, glm::vec3(trianglePinPosition.x + 8.f, plane_pos.y + wall_size.y, -50.f), wall_size, glm::vec3(0.f, 0.f, 0.f), 0, 0.3f, 0.3f);
 
     // Model and Normal transformation matrices for the objects in the scene: we set to identity
     glm::mat4 objModelMatrix = glm::mat4(1.0f);
-    // textures for plane
-    ImageTexture brickTexture("../textures/bricks.jpg");
-    ImageTexture brickNormalMap("../textures/bricks_NormalMap.jpg");
-    ImageTexture planeTexture("../textures/DirtFloor.jpg");
-    ImageTexture planeNormalMap("../textures/DirtFloor_NormalMap.png");
-    ImageTexture planeDisplacementMap("../textures/DirtFloor_DispMap.png");
-    ImageTexture snowTexture("../textures/snow.jpg");
-    ImageTexture asphaltTexture("../textures/Asphalt.jpg");
-    ImageTexture asphaltNormalMap("../textures/Asphalt_NormalMap.jpg");
-    // ImageTexture planeTexture("../textures/Stone.jpg");
-    // ImageTexture planeNormalMap("../textures/Stone_NormalMap.jpg");
-    // ImageTexture planeDisplacementMap("../textures/Stone_DispMap.jpg");
-    SkyboxTexture skybox("../textures/skyboxs/default/");
     
     // create shadow map frame buffer object
     GLuint depthMapFBO;
