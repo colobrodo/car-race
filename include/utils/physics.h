@@ -115,11 +115,13 @@ public:
         return body;
     }
 
-    btRigidBody* createConvexDynamicRigidBodyFromMesh(Mesh &mesh, glm::vec3 pos, glm::vec3 rot, glm::vec3 scale, float m, float friction, float restitution) {
+    btRigidBody* createConvexDynamicRigidBodyFromModel(Model *model, glm::vec3 pos, glm::vec3 rot, glm::vec3 scale, float m, float friction, float restitution) {
         auto hull = new btConvexHullShape();
-        for(auto &vertex: mesh.vertices) {
-            auto vertexPos = vertex.Position;
-            hull->addPoint(btVector3(vertexPos.x, vertexPos.y, vertexPos.z));
+        for(auto &mesh: model->meshes) {
+            for(auto &vertex: mesh.vertices) {
+                auto vertexPos = vertex.Position;
+                hull->addPoint(btVector3(vertexPos.x, vertexPos.y, vertexPos.z));
+            }
         }
 
         hull->setLocalScaling(btVector3(scale.x, scale.y, scale.z));

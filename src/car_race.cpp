@@ -468,27 +468,47 @@ int main()
     glm::vec3 bridgePos(0.f, -1.f, 10.f);
     Obstacle bridge(bridgeModel, bridgePos);
 
-    glm::vec3 spPos(40.f, -1.8f, -30.f);
+    glm::vec3 spPos(60.f, -2.f, -70.f);
     Obstacle skatePark(skateParkModel, spPos);
 
-    glm::vec3 rampPos(20.f, -1.f, -10.f);
+    glm::vec3 rampPos(60.f, -1.f, -50.f);
     glm::vec3 rampDim(10.f, 10.f, 10.f);
     Obstacle ramp(rampModel, rampPos, rampDim);
     ramp.Illumination.Kd = 3.f;
     ramp.Illumination.alpha = .3f;
     ramp.Illumination.F0 = .9f;
 
+    /// TODO: nice big ball
+    // auto ball = bulletSimulation.createRigidBody(SPHERE, glm::vec3(-100.f, 1.f, -70.f), glm::vec3(3.f, 3.f, 3.f), glm::vec3(0, 0, 0), 5.f, .3f, 2.f);
+    /// TODO: method DrawSphere
+    // create ball
+    auto ball = bulletSimulation.createRigidBody(SPHERE, glm::vec3(-100.f, 1.f, -70.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(0, 0, 0), 15.f, .3f, 3.f);
+    // create pins
     std::vector<btRigidBody*> pins;
     glm::vec3 pinDim(10.f, 10.f, 10.f);
-    /// TODO: bowling pin disabled for now
-    for(int i = 0; i < 0; i += 1) {
-        glm::vec3 pinPos(20.f + i * 2.f, -1.f, 0.f);
-        glm::mat4 pinModelMatrix(1.0f);
-        pinModelMatrix = glm::translate(pinModelMatrix, pinPos);
-        pinModelMatrix = glm::scale(pinModelMatrix, pinDim);
-        // creating a rigid body for each mesh of the model
-        for(auto &mesh: bowlingPinModel->meshes) {
-            auto pin = bulletSimulation.createConvexDynamicRigidBodyFromMesh(mesh, pinPos, plane_rot, pinDim, 30.f, 10.f, .3f);
+    {
+        // create all pins
+        std::vector<glm::vec3> pinOffsets {
+            glm::vec3(4.f, 0.f, 0.f),
+            glm::vec3(3.f, 0.f, 1.f),
+            glm::vec3(5.f, 0.f, 1.f),
+            glm::vec3(2.f, 0.f, 2.f),
+            glm::vec3(4.f, 0.f, 2.f),
+            glm::vec3(6.f, 0.f, 2.f),
+            glm::vec3(1.f, 0.f, 3.f),
+            glm::vec3(3.f, 0.f, 3.f),
+            glm::vec3(5.f, 0.f, 3.f),
+            glm::vec3(7.f, 0.f, 3.f),
+        };
+
+        glm::vec3 trianglePinPosition(-100.f, 1.f, -50.f);
+        for(int i = 0; i < 10; i += 1) {
+            auto pinPos = trianglePinPosition + pinOffsets[i] * glm::vec3(1.5f, 1.f, 2.f);
+            glm::mat4 pinModelMatrix(1.0f);
+            pinModelMatrix = glm::translate(pinModelMatrix, pinPos);
+            pinModelMatrix = glm::scale(pinModelMatrix, pinDim);
+            // creating a rigid body for each mesh of the model
+            auto pin = bulletSimulation.createConvexDynamicRigidBodyFromModel(bowlingPinModel, pinPos, plane_rot, pinDim, .2f, .3f, .3f);
             pins.push_back(pin);
         }
     }
@@ -690,8 +710,27 @@ int main()
         // drawing the skate park
         skatePark.Draw(objectRenderer);
         
-        // drawing the bowling pins
+        // draw bowling ball
+        objectRenderer.SetColor(glm::vec3(0.f, 1.f, 1.f));
         float matrix[16];
+        btTransform transform;
+        // we take the transformation matrix of the rigid boby, as calculated by the physics engine
+        ball->getMotionState()->getWorldTransform(transform);
+        // we convert the Bullet matrix (transform) to an array of floats
+        transform.getOpenGLMatrix(matrix);
+        // we reset to identity at each frame
+        auto modelMatrix = glm::mat4(1.0f);
+        auto normalMatrix = glm::mat3(1.0f);
+        // we create the GLM transformation matrix
+        // 1) we convert the array of floats to a GLM mat4 (using make_mat4 method)
+        // 2) Bullet matrix provides rotations and translations: it does not consider scale (usually the Collision Shape is generated using directly the scaled dimensions). If, like in our case, we have applied a scale to the original model, we need to multiply the scale to the rototranslation matrix created in 1). If we are working on an imported and not scaled model, we do not need to do this
+        modelMatrix = glm::make_mat4(matrix) * glm::scale(modelMatrix, glm::vec3(1.f, 1.f, 1.f));
+        // we create the normal matrix
+        objectRenderer.SetModelTrasformation(modelMatrix);
+        sphereModel->Draw();
+        
+        // drawing the bowling pins
+        objectRenderer.SetColor(glm::vec3(1.f, 1.f, 1.f));
         for(auto pin: pins) {
             btTransform transform;
             pin->getMotionState()->getWorldTransform(transform);
@@ -942,6 +981,7 @@ int main()
             ImGui::SliderFloat("Roll Influence", &vehicle.WheelInfo.rollInfluence, 0.0f, 2.0f);
             ImGui::End();
 
+            /*
             /// Options for ggx material parameter
             ImGui::Begin("Illuminance Model");
             ImGui::SliderFloat3("Position", glm::value_ptr(renderer.lightDirection), -1.f, 1.f);
@@ -949,6 +989,7 @@ int main()
             ImGui::SliderFloat("Roughness", &illumination.alpha, 0.01f, 1.f);
             ImGui::SliderFloat("Fresnel reflectance", &illumination.F0, 0.01f, 1.f);
             ImGui::End();
+            */
 
             /// Options for camera
             ImGui::Begin("Camera");
