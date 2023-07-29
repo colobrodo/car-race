@@ -93,7 +93,7 @@ positive Z axis points "outside" the screen
 GLuint screenWidth = 1400, screenHeight = 1100;
 
 // shadow map framebuffer dimensions
-const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+const GLuint SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
 
 // callback functions for keyboard and mouse events
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
@@ -106,7 +106,7 @@ bool keys[1024];
 GLfloat lastX, lastY;
 
 // we will use these value to "pass" the cursor position to the keyboard callback, in order to determine the bullet trajectory
-double cursorX,cursorY;
+double cursorX, cursorY;
 
 // when rendering the first frame, we do not have a "previous state" for the mouse, so we need to manage this situation
 bool firstMouse = true;
@@ -167,7 +167,7 @@ void calculateShadowMapViewFrustum(glm::mat4 view, glm::mat4 projection, glm::ve
                             center,
                             glm::vec3(0.0f, 1.0f, 0.0f));
     float near_plane = -100.0f, far_plane = 100.f;
-    *lightProjection = glm::ortho(-35.0f, 35.0f, -35.0f, 35.0f, near_plane, far_plane);
+    *lightProjection = glm::ortho(-70.0f, 70.0f, -70.0f, 70.0f, near_plane, far_plane);
 }
 
 void updateCameraPosition(Vehicle vehicle, Camera &camera, const glm::vec3 offset, float deltaTime) {

@@ -27,7 +27,7 @@ float calculateShadow() {
     vec3 lightPosOnPlane = lightFragPosition.xyz / lightFragPosition.w;
     // after the perspective divide the values are in the range [-1,1]: we must convert them in [0,1]
     lightPosOnPlane = lightPosOnPlane * 0.5 + 0.5;
-    float bias = 0.001;
+    float bias = 0.0025;
     lightPosOnPlane.z -= bias;
     // checking if the fragment coordinate is outside the light view frustum
     if(lightPosOnPlane.z > 1.0)
