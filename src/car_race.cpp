@@ -412,11 +412,12 @@ int main()
     Physics &bulletSimulation = Physics::getInstance();
 
     MeshRenderer renderer;
-    /// Uniforms for the illumination model
     renderer.lightDirection = glm::vec3(1.0f, 1.0f, 1.0f);
-    renderer.illumination.Kd = 3.0f;
-    renderer.illumination.alpha = 0.6f;
-    renderer.illumination.F0 = 0.9f;
+    /// Parameters for the illumination model
+    IlluminationModelParameters illumination;
+    illumination.Kd = 3.0f;
+    illumination.alpha = 0.6f;
+    illumination.F0 = 0.9f;
 
     // renderer for skybox
     SkyboxRenderer skyboxRenderer;
@@ -474,20 +475,20 @@ int main()
         bulletSimulation.createRigidBodyFromMesh(mesh, rampPos, plane_rot, rampDim);
     }
 
-    std::vector<glm::mat4> pinsTrasformations;
-    for(int i = 0; i < 10; i += 1) {
+    std::vector<btRigidBody*> pins;
+    glm::vec3 pinDim(10.f, 10.f, 10.f);
+    /// TODO: bowling pin disabled for now
+    for(int i = 0; i < 0; i += 1) {
         glm::vec3 pinPos(20.f + i * 2.f, -1.f, 0.f);
-        glm::vec3 pinDim(10.f, 10.f, 10.f);
         glm::mat4 pinModelMatrix(1.0f);
         pinModelMatrix = glm::translate(pinModelMatrix, pinPos);
         pinModelMatrix = glm::scale(pinModelMatrix, pinDim);
         // creating a rigid body for each mesh of the model
         for(auto &mesh: bowlingPinModel->meshes) {
-            bulletSimulation.createRigidBodyFromMesh(mesh, pinPos, plane_rot, pinDim);
+            auto pin = bulletSimulation.createConvexDynamicRigidBodyFromMesh(mesh, pinPos, plane_rot, pinDim, 30.f, 10.f, .3f);
+            pins.push_back(pin);
         }
-        pinsTrasformations.push_back(pinModelMatrix);
     }
-
 
     /// create particles emitter for snow
     auto totalParticles = 1500;
@@ -554,11 +555,10 @@ int main()
     // default wheel infos
     WheelInfo wheelInfo;
     Vehicle vehicle(chassisBox, wheelInfo);
-    IlluminationModelParameter carIlluminationParameter;
-    carIlluminationParameter.Kd = 3.0f;
-    carIlluminationParameter.alpha = 0.6f;
+    IlluminationModelParameters carIlluminationParameter;
+    carIlluminationParameter.Kd = 4.2f;
+    carIlluminationParameter.alpha = 0.2f;
     carIlluminationParameter.F0 = 0.9f;
-
 
     // we create 25 rigid bodies for the cubes of the scene. In this case, we use BoxShape, with the same dimensions of the cubes, as collision shape of Bullet. For more complex cases, a Bounding Box of the model may have to be calculated, and its dimensions to be passed to the physics library
     GLint num_side = 5;
@@ -634,7 +634,8 @@ int main()
     HeightmapRenderer heightmapRenderer(heightmap);
 
     auto renderPlane = [&](ObjectRenderer &objectRenderer) {
-            // set texture for the plane
+        objectRenderer.UpdateIlluminationModel(illumination);
+        // set texture for the plane
         objectRenderer.SetTexture(planeTexture, 20.f);
         // set the normal map
         objectRenderer.SetNormalMap(planeNormalMap);
@@ -645,12 +646,16 @@ int main()
     };
 
     auto renderObjects = [&](ObjectRenderer &objectRenderer) {
+        // car is supposed to be metal, so change the illumination model a bit
+        objectRenderer.UpdateIlluminationModel(carIlluminationParameter);
         // do not use parallax map anymore but restore uv coordinate interpolation
         objectRenderer.SetTexCoordinateCalculation(UV);
         // reset normals calculation in vertex shader with normal matrix not anymore with normal map
-        objectRenderer.SetNormalCalculation(FROM_MATRIX);        
+        objectRenderer.SetNormalCalculation(FROM_MATRIX);
         drawVehicle(objectRenderer, vehicle);
 
+        // illumination parameter for plastic objects
+        objectRenderer.UpdateIlluminationModel(illumination);
         // we need two variables to manage the rendering of both cubes and bullets
         glm::vec3 obj_size;
         // we ask Bullet to provide the total number of Rigid Bodies in the scene
@@ -675,7 +680,7 @@ int main()
         objectRenderer.SetModelTrasformation(bridgeModelMatrix);
         bridgeModel->Draw();
         
-        // drawing the ramp
+        // drawing the curved ramp
         glm::mat4 rampModelMatrix(1.0f);
         rampModelMatrix = glm::translate(rampModelMatrix, rampPos);
         rampModelMatrix = glm::scale(rampModelMatrix, rampDim);
@@ -685,7 +690,13 @@ int main()
         rampModel->Draw();
         
         // drawing the bowling pins
-        for(auto &pinModelMatrix: pinsTrasformations) {
+        float matrix[16];
+        for(auto pin: pins) {
+            btTransform transform;
+            pin->getMotionState()->getWorldTransform(transform);
+            transform.getOpenGLMatrix(matrix);
+            auto pinModelMatrix = glm::make_mat4(matrix);
+            pinModelMatrix = glm::scale(pinModelMatrix, pinDim);
             objectRenderer.SetModelTrasformation(pinModelMatrix);
             bowlingPinModel->Draw();
         }
@@ -693,7 +704,7 @@ int main()
 
     auto renderHeightmap = [&](ObjectRenderer &objectRenderer) {
         // plane texture
-        objectRenderer.SetTexture(snowTexture, 4.f);
+        objectRenderer.SetTexture(snowTexture, 2.f);
         // drawing the heightmap, for now is positioned with the center at
         glm::mat4 model = glm::mat4(1.0f);
         objectRenderer.SetModelTrasformation(model);
@@ -930,13 +941,12 @@ int main()
             ImGui::SliderFloat("Roll Influence", &vehicle.WheelInfo.rollInfluence, 0.0f, 2.0f);
             ImGui::End();
 
-            /// Options for camera
+            /// Options for ggx material parameter
             ImGui::Begin("Illuminance Model");
-            auto &illumination = renderer.illumination;
             ImGui::SliderFloat3("Position", glm::value_ptr(renderer.lightDirection), -1.f, 1.f);
-            ImGui::SliderFloat("Diffusive component weight", &illumination.Kd, 0.f, 10.f);
-            ImGui::SliderFloat("Roughness", &illumination.alpha, 0.01f, 1.f);
-            ImGui::SliderFloat("Fresnel reflectance", &illumination.F0, 0.01f, 1.f);
+            ImGui::SliderFloat("Diffusive component weight", &carIlluminationParameter.Kd, 0.f, 10.f);
+            ImGui::SliderFloat("Roughness", &carIlluminationParameter.alpha, 0.01f, 1.f);
+            ImGui::SliderFloat("Fresnel reflectance", &carIlluminationParameter.F0, 0.01f, 1.f);
             ImGui::End();
 
             /// Options for camera

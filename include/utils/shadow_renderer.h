@@ -28,4 +28,6 @@ class ShadowRenderer: public ObjectRenderer {
 
     virtual void SetTexCoordinateCalculation(TextureCoordinateCalculation calculation) { };
 
+    virtual void UpdateIlluminationModel(IlluminationModelParameters &illumination) { };
+
 };

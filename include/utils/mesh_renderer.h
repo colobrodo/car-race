@@ -8,15 +8,6 @@
 #include "texture.h";
 #include "shader.h";
 
-struct IlluminationModelParameter {
-    // weight for the diffusive component
-    float Kd;
-    // Fresnel reflectance at 0 degree (Schlik's approximation)
-    float F0;
-    // roughness index for GGX shader
-    float alpha;
-};
-
 
 class MeshRenderer: public ObjectRenderer {
 public:
@@ -35,7 +26,6 @@ public:
 
     void Activate(glm::mat4 viewMatrix, glm::mat4 projection) {
         ObjectRenderer::Activate(viewMatrix, projection);
-        UpdateIlluminationModel();
     }
 
     void SetColor(glm::vec3 color) {
@@ -135,7 +125,7 @@ public:
         setTexCoordinateSubroutine(subroutineName);
     }
 
-    void UpdateIlluminationModel() {
+    void UpdateIlluminationModel(IlluminationModelParameters &illumination) {
         GLint lightDirLocation = glGetUniformLocation(shader->Program, "lightVector");
         GLint kdLocation = glGetUniformLocation(shader->Program, "Kd");
         GLint alphaLocation = glGetUniformLocation(shader->Program, "alpha");
@@ -147,7 +137,6 @@ public:
         glUniform1f(f0Location, illumination.F0);
     }
 
-    IlluminationModelParameter illumination;
     // point light position
     glm::vec3 lightDirection;
 private:

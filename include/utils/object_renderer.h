@@ -21,6 +21,15 @@ enum TextureCoordinateCalculation {
     PARALLAX_MAP,
 };
 
+struct IlluminationModelParameters {
+    // weight for the diffusive component
+    float Kd;
+    // Fresnel reflectance at 0 degree (Schlik's approximation)
+    float F0;
+    // roughness index for GGX shader
+    float alpha;
+};
+
 class ObjectRenderer: public Renderer {
     public:
     void SetModelTrasformation(glm::mat4 modelMatrix) {
@@ -43,4 +52,5 @@ class ObjectRenderer: public Renderer {
 
     virtual void SetTexCoordinateCalculation(TextureCoordinateCalculation calculation) = 0;
     
+    virtual void UpdateIlluminationModel(IlluminationModelParameters &illumination) = 0;
 };

@@ -39,4 +39,6 @@ public:
 
     virtual void SetTexCoordinateCalculation(TextureCoordinateCalculation calculation) { };
 
+    virtual void UpdateIlluminationModel(IlluminationModelParameters &illumination) { };
+
 };

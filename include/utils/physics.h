@@ -115,12 +115,58 @@ public:
         return body;
     }
 
+    btRigidBody* createConvexDynamicRigidBodyFromMesh(Mesh &mesh, glm::vec3 pos, glm::vec3 rot, glm::vec3 scale, float m, float friction, float restitution) {
+        auto hull = new btConvexHullShape();
+        for(auto &vertex: mesh.vertices) {
+            auto vertexPos = vertex.Position;
+            hull->addPoint(btVector3(vertexPos.x, vertexPos.y, vertexPos.z));
+        }
+
+        hull->setLocalScaling(btVector3(scale.x, scale.y, scale.z));
+        this->collisionShapes.push_back(hull);
+
+        // we set a quaternion from the Euler angles passed as parameters
+        btQuaternion rotation;
+        rotation.setEuler(rot.x, rot.y, rot.z);
+        btVector3 position(pos.x, pos.y, pos.z);
+
+        // We set the initial transformations
+        btTransform objTransform;
+        objTransform.setIdentity();
+        objTransform.setRotation(rotation);
+        // we set the initial position (it must be equal to the position of the corresponding model of the scene)
+        objTransform.setOrigin(position);
+
+        // if it is dynamic (mass > 0) then we calculates local inertia
+        btVector3 localInertia(0.0f, 0.0f, 0.0f);
+        bool isDynamic = (m != 0.0f);
+        if (isDynamic)
+            hull->calculateLocalInertia(m, localInertia);
+
+        // we initialize the Motion State of the object on the basis of the transformations
+        // using the Motion State, the physical simulation will calculate the positions and rotations of the rigid body
+        btDefaultMotionState* motionState = new btDefaultMotionState(objTransform);
+        // we set the data structure for the rigid body, mass is always 0 for mesh object (bullet)
+        btRigidBody::btRigidBodyConstructionInfo rbInfo(m, motionState, hull, localInertia);
+        // we set friction and restitution
+        rbInfo.m_friction = friction;
+        rbInfo.m_restitution = restitution;
+        // we create the rigid body
+        btRigidBody* body = new btRigidBody(rbInfo);
+
+        //add the body to the dynamics world
+        this->dynamicsWorld->addRigidBody(body);
+
+        // the function returns a pointer to the created rigid body
+        // in a standard simulation (e.g., only objects falling), it is not needed to have a reference to a single rigid body, but in some cases (e.g., the application of an impulse), it is needed.
+        return body;
+    }
+
     //////////////////////////////////////////
     // Method for the creation of a rigid body, based on a Box or Sphere Collision Shape
     // The Collision Shape is a reference solid that approximates the shape of the actual object of the scene. The Physical simulation is applied to these solids, and the rotations and positions of these solids are used on the real models.
     btRigidBody* createRigidBody(int type, glm::vec3 pos, glm::vec3 size, glm::vec3 rot, float m, float friction , float restitution)
     {
-
         btCollisionShape* cShape = NULL;
 
         // we convert the glm vector to a Bullet vector
