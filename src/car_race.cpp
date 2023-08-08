@@ -148,8 +148,9 @@ Model *cylinderModel;
 Model *carModel;
 Model *bridgeModel;
 Model *rampModel;
-Model *skateParkModel;
+// Model *skateParkModel;
 Model *bowlingPinModel;
+Model *raceTrackModel;
 
 
 void drawQuad() {
@@ -440,7 +441,8 @@ int main()
     cylinderModel = new Model("../models/cylinder.obj");
     bridgeModel = new Model("../models/stone_bridge.obj");
     rampModel = new Model("../models/ramp.obj");
-    skateParkModel = new Model("../models/skatepark_ramp.obj");
+    // skateParkModel = new Model("../models/skatepark_ramp.obj");
+    raceTrackModel = new Model("../models/racetrack.obj");
     bowlingPinModel = new Model("../models/bowling_pin.obj");
 
     // textures for plane
@@ -458,7 +460,7 @@ int main()
     SkyboxTexture skybox("../textures/skyboxs/default/");
 
     // we set the maximum delta time for the update of the physical simulation
-    GLfloat maxSecPerFrame = 1.0f / 120.0f;
+    GLfloat maxSecPerFrame = 1.0f / 90.0f;
 
     // Projection matrix: FOV angle, aspect ratio, near and far planes
     projection = glm::perspective(45.0f, (float)screenWidth/(float)screenHeight, 0.1f, 10000.0f);
@@ -488,8 +490,12 @@ int main()
     glm::vec3 bridgePos(0.f, -1.f, 10.f);
     Obstacle bridge(bridgeModel, bridgePos);
 
-    glm::vec3 spPos(60.f, -2.f, -70.f);
-    Obstacle skatePark(skateParkModel, spPos);
+    // glm::vec3 spPos(60.f, -1.8f, -70.f);
+    // Obstacle skatePark(skateParkModel, spPos);
+    
+    glm::vec3 trackPos(50.f, -2.3f, 20.f);
+    glm::vec3 trackDim(.7f, .7f, .7f);
+    Obstacle raceTrack(raceTrackModel, trackPos, trackDim);
 
     glm::vec3 rampPos(60.f, -1.f, -50.f);
     glm::vec3 rampDim(10.f, 10.f, 10.f);
@@ -499,12 +505,12 @@ int main()
     ramp.Illumination.F0 = .9f;
 
     /// creating objects for boowling scene
-    glm::vec3 trianglePinPosition(-100.f, 1.f, -50.f);
+    glm::vec3 trianglePinPosition(-50.f, 1.f, -50.f);
     /// TODO: nice big ball
     // auto ball = bulletSimulation.createRigidBody(SPHERE, glm::vec3(-100.f, 1.f, -70.f), glm::vec3(3.f, 3.f, 3.f), glm::vec3(0, 0, 0), 5.f, .3f, 2.f);
     /// TODO: method DrawSphere
     // create ball
-    auto ball = bulletSimulation.createRigidBody(SPHERE, glm::vec3(trianglePinPosition.x, 1.f, trianglePinPosition.z - 20.f), glm::vec3(1.f, 1.f, 1.f), glm::vec3(0, 0, 0), 15.f, .3f, 3.f);
+    auto ball = bulletSimulation.createRigidBody(SPHERE, glm::vec3(trianglePinPosition.x, 1.f, trianglePinPosition.z - 20.f), glm::vec3(3.f, 3.f, 3.f), glm::vec3(0, 0, 0), 15.f, .3f, 3.f);
     // create pins
     std::vector<btRigidBody*> pins;
     glm::vec3 pinDim(10.f, 10.f, 10.f);
@@ -523,7 +529,7 @@ int main()
             glm::vec3(3.f, 0.f, 3.f),
         };
 
-        for(int i = 0; i < 10; i += 1) {
+        for(int i = 0; i < 0; i += 1) {
             auto pinPos = trianglePinPosition + pinOffsets[i] * glm::vec3(1.5f, 1.f, 2.f);
             glm::mat4 pinModelMatrix(1.0f);
             pinModelMatrix = glm::translate(pinModelMatrix, pinPos);
@@ -634,9 +640,11 @@ int main()
     // creating ramp
     bulletSimulation.createRigidBody(BOX, glm::vec3(-50.f, -2.f, 0.f), glm::vec3(3.f), glm::vec3(0.f, 0.f, glm::radians(60.f)), 0, 0.3f, 0.3f);
     // create some walls for bowling scene
+    /*
     auto wall_size = glm::vec3(.5f, .7f, 10.f); 
     bulletSimulation.createRigidBody(BOX, glm::vec3(trianglePinPosition.x - 8.f, plane_pos.y + wall_size.y, -50.f), wall_size, glm::vec3(0.f, 0.f, 0.f), 0, 0.3f, 0.3f);
     bulletSimulation.createRigidBody(BOX, glm::vec3(trianglePinPosition.x + 8.f, plane_pos.y + wall_size.y, -50.f), wall_size, glm::vec3(0.f, 0.f, 0.f), 0, 0.3f, 0.3f);
+    */
 
     // Model and Normal transformation matrices for the objects in the scene: we set to identity
     glm::mat4 objModelMatrix = glm::mat4(1.0f);
@@ -714,7 +722,10 @@ int main()
         // reset colors for remaining obstacles
         objectRenderer.SetColor(glm::vec3(1.f, 0.f, 0.f));
         // drawing the skate park
-        skatePark.Draw(objectRenderer);
+        // skatePark.Draw(objectRenderer);
+        
+        // drawing the track
+        raceTrack.Draw(objectRenderer);
         
         // draw bowling ball
         objectRenderer.SetColor(glm::vec3(0.f, 1.f, 1.f));
@@ -730,7 +741,7 @@ int main()
         // we create the GLM transformation matrix
         // 1) we convert the array of floats to a GLM mat4 (using make_mat4 method)
         // 2) Bullet matrix provides rotations and translations: it does not consider scale (usually the Collision Shape is generated using directly the scaled dimensions). If, like in our case, we have applied a scale to the original model, we need to multiply the scale to the rototranslation matrix created in 1). If we are working on an imported and not scaled model, we do not need to do this
-        modelMatrix = glm::make_mat4(matrix) * glm::scale(modelMatrix, glm::vec3(1.f, 1.f, 1.f));
+        modelMatrix = glm::make_mat4(matrix) * glm::scale(modelMatrix, glm::vec3(3.f, 3.f, 3.f));
         // we create the normal matrix
         objectRenderer.SetModelTrasformation(modelMatrix);
         sphereModel->Draw();
@@ -849,12 +860,12 @@ int main()
         vehicle.Update(deltaTime);
         
         // we update the physics simulation. We must pass the deltatime to be used for the update of the physical state of the scene.
-        // Bullet works with a default timestep of 120 Hz (1/120 seconds). For smaller timesteps (i.e., if the current frame is computed faster than 1/120 seconds), Bullet applies interpolation rather than actual simulation.
-        // In this example, we use deltatime from the last rendering: if it is < 1\120 sec, then we use it (thus "forcing" Bullet to apply simulation rather than interpolation), otherwise we use the default timestep (1/120 seconds) we have set above
+        // Bullet works with a default timestep of 60 Hz (1/60 seconds). For smaller timesteps (i.e., if the current frame is computed faster than 1/60 seconds), Bullet applies interpolation rather than actual simulation.
+        // In this example, we use deltatime from the last rendering: if it is < 1\60 sec, then we use it (thus "forcing" Bullet to apply simulation rather than interpolation), otherwise we use the default timestep (1/60 seconds) we have set above
         // We also set the max number of substeps to consider for the simulation (=10)
         // The "correct" values to set up the timestep depends on the characteristics and complexity of the physical simulation, the amount of time spent for the other computations (e.g., complex shading), etc.
         // For example, this example, with limited lighting, simple materials, no texturing, works correctly even setting:
-        // bulletSimulation.dynamicsWorld->stepSimulation(1.0/120.0,10);
+        // bulletSimulation.dynamicsWorld->stepSimulation(1.0/60.0,10);
         bulletSimulation.dynamicsWorld->stepSimulation((deltaTime < maxSecPerFrame ? deltaTime : maxSecPerFrame), 10);
 
         // reactivate depth test
@@ -1051,7 +1062,7 @@ int main()
     delete carModel;
     delete bridgeModel;
     delete rampModel;
-    delete skateParkModel;
+    // delete skateParkModel;
     delete bowlingPinModel;
     // we close and delete the created context
     glfwTerminate();
