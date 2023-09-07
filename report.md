@@ -144,7 +144,9 @@ After that the new normal is transformed to tangent space and at the end is used
 I don't use a normal map for each object in the scene, for the majority of the meshes I used the values stored in the vertex data.   
 To choose if to rely on a normal map texture or use the stored normal, I used a GLSL subroutine.   
 Before rendering each mesh the user set the desired subroutine: using vertex normals or to use normal map, in the last case the user should also supply the texture.   
-**TODO: side by side image with normal map and not on the surface**
+
+![NormalMap](./img/normal-map.png)
+Here an image with the normal map on the ramp (right) and without (left)
 
 ### Light Model
 The light model used by the application is the GGX model implemented during the lectures.   
