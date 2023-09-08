@@ -131,22 +131,31 @@ So for dynamic obstacles with complex shapes we create a convex hull of the mesh
 
 ## Minor graphical additions
 
-### Skybox
-
 ### Texture
+I used different images as texture to apply on the surface of the mesh.
+![Textures](./img/textures.png)
+The list of texture used in the project with the respective normal maps (described in the next section).
 
 ### Normal Mapping
-In addition to image textures I have also implemented the technique called normal mapping.   
-This technique aims to increment the realism of the scene adding more small-size loght details changing the normal of the surface.   
-The normals of the surface is replaced with one stored in a texture.   
-The normal map is a 3-channel rgb image, which is remapped from the range [0, 255] to the range [-1, 1] after sampling.    
-After that the new normal is transformed to tangent space and at the end is used in the lighting model instead of the normal stored in the vertex.   
-I don't use a normal map for each object in the scene, for the majority of the meshes I used the values stored in the vertex data.   
-To choose if to rely on a normal map texture or use the stored normal, I used a GLSL subroutine.   
-Before rendering each mesh the user set the desired subroutine: using vertex normals or to use normal map, in the last case the user should also supply the texture.   
+In addition to the image textures, I also implemented a technique called Normal Mapping.   
+This technique aims to increase the realism of the scene by adding more small light details that change the normal of the surface.   
+The normal of the surface is replaced by a normal stored in a texture.   
+The normal map is a 3-channel RGB image that is remapped from the [0, 255] range to the [-1, 1] range after sampling.    
+The new normal is then transformed into tangent space and finally used in the lighting model instead of the normal stored in the vertex.   
+I don't use a normal map for every object in the scene, for most meshes I use the values stored in the vertex data.   
+To choose whether to rely on a normal map texture or use the stored normal, I used a GLSL subroutine.   
+Before rendering each mesh, the user set the desired subroutine: use vertex normals or use normal map, in the latter case the user should also supply the texture.   
 
 ![NormalMap](./img/normal-map.png)
 Here an image with the normal map on the ramp (right) and without (left)
+
+### Skybox
+To give the scene a better sense of depth, I used a cubemap.   
+A cubemap (also called a skybox) is a texture that contains 6 individual 2D textures, each of which forms one side of a cube.
+The player and the whole world are enclosed in this cube.   
+The skybox is not passed to the shader as a normal texture, but a samplerCube is used instead, which differs from the texture in that it is not sampled with a 2D UV coordinate, but with a 3-component vector UVW that indicates the direction from which the fragment is viewed by the camera.   
+Since the skybox is always the farthest object, it is rendered last to avoid unnecessary fragment shader calls.  
+
 
 ### Light Model
 The light model used by the application is the GGX model implemented during the lectures.   
