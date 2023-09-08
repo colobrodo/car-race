@@ -795,6 +795,9 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    auto frameCount = 0;
+    auto elapsedTimeFromLastProfilation = 0.f;
+
     // Rendering loop: this code is executed at each frame
     while(!glfwWindowShouldClose(window))
     {
@@ -803,6 +806,16 @@ int main()
         GLfloat currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        // stimate the current fps each 5 seconds
+        if(elapsedTimeFromLastProfilation > 5.f) {
+            auto framePerSecond = frameCount / elapsedTimeFromLastProfilation;
+            elapsedTimeFromLastProfilation = 0.0f;
+            frameCount = 0;
+            printf("fps: %f\n", framePerSecond);
+        }
+        frameCount += 1;
+        elapsedTimeFromLastProfilation += deltaTime;
 
         // Check is an I/O event is happening
         glfwPollEvents();
