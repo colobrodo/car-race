@@ -13,6 +13,7 @@ I used the Microsoft Visual Studio compiler to develop the project on Windows 11
 ## Used Libraries
 To implement this project I used the following libraries:   
 - **OpenGL** is an API to develop 3D computer graphics application, it provides a way to control and program the rendering pipeline   
+- **GLM** a mathematics library that provide extended capabilities like matrix transformations, quaternions, vector math ecc...    
 - **Bullet** is a physics engine that simulates collision detection and soft and rigid body dynamics   
 - **Assimp**   
 - **Dear IMGui** a Immediate mode GUI library to tweak the parameters of the application at runtime.   
@@ -48,7 +49,10 @@ On the left, the car in the snow with low suspension. On the right, the suspensi
 
 
 ### Tesselation
-**TODO: explain what is tesselation**   
+Immediately after the vertex shader is an optional phase called tesselation, where you can use three stages to divide existing faces into more detailed ones composed of multiple vertices.   
+The first shader is the 'Tesselation Control Shader', which allows you to control how much your geometry is tesselated.   
+After that you have the `Tesselation Primitive Generator', whose purpose is to create the intermediate points.   
+These intermediate points are expressed in uv coordinates, the `hull shader' is what actually translates them into homogeneous coordinates in clip space.   
 
 In the hull shader, I sample the texture from the depth buffer, calculate the displacement of the vertex and multiply this value by the height of the snow.
 Then I calculate the new position of the vertex by changing its y-axis to the height.
@@ -164,29 +168,56 @@ For example, for the car I reduced the roughness and increased the Fresnel refle
 
 # Performance
 ## Device 
+----------------------
+*TODO*   
+
+## General performance
+
 ## Performance related to particles
+I run the applicaton with the same set of meshes and record the average framerate, its max and min to check is variance varying how many particle to render.   
+In the final application I used 1000 particle to obtain the wanted effect (see snow image).   
+All the particle rendered are emitted from the same source.      
+
+| Number of particles  | Minimum framerate | Maximum framerate | Average fps  |
+|----------------------|-------------------|-------------------|--------------|
+|      500             |       213         |        255        |     238      |
+|      1000            |       188         |        234        |     216      |
+|      2000            |       149         |        156        |     154      |
+|      3000            |       114         |        117        |     116      |
+|      5000            |       77          |        79         |     79       |
+
+I also tested the performance of the particle in a playgorund: a separate application where I can tweak the parameter of the source and the emitter is the only object rendered.     
+**TODO Link playground image**
+
+| Number of particles  | Minimum framerate | Maximum framerate | Average fps  |
+|----------------------|-------------------|-------------------|--------------|
+|      500             |       77          |        79         |     79       |
+|      1000            |                   |                   |              |
+|      2500            |                   |                   |              |
+|      5000            |       77          |        79         |     79       |
+|      10000           |       77          |        79         |     79       |
 
 ### Possible improvments
 **TODO: check grammar**
-At this point, each particle in the buffer is updated on the CPU and rendered separately with istancing.   
+At this point, each particle in the buffer is updated on the CPU and rendered separately using istancing.   
 Since the particle doesn't physically interact with the other object, each element can be updated independently.   
 In addition to the lack of parallelization, another disadvantage of updating the particle on the CPU is the memory transfer to the graphics card.   
 It is possible to use compute shaders to create and update each particle on the GPU without the need for the CPU to update and transfer the buffer at each frame.    
-Despite this, as shown, even with just the instancing technique, there are no frame drops up to --- (10,000 ???) particles.
+Despite this, as shown, even with just the instancing technique, there are no frame drops up to 5000 particles.
 A number that is more than enough to implement the effects used in the project.   
 
 ## Performance related to Meshes
 
-**TODO: check grammar**
-The main drawback of adding meshes to this project is that they have to be rendered 3 times on each frame: Once for the generic rendering, once for the shadow map calculation and finally to calculate the depth over the snow section.   
-This is a list of the meshes I used for this project:   
+The main disadvantage of adding meshes to this project is that they have to be rendered 3 times on each frame: Once for the generic rendering, once for the shadow map calculation and finally to calculate the depth over the snow quad.   
+This is a list of the meshes I used for this project: 
 
 --- image of meshes used ---
 
 ----
 
+This meshes have a total of ---- triangles.
 
-Even with this meshes the performance is stable to --- fps
+Even with this meshes the performance have an average of --- fps
 
 ### Possible improvments
 One improvement that can be made to each render pass is to use frustum culling.   
