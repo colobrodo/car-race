@@ -191,11 +191,10 @@ I also tested the performance of the particle in a playgorund: a separate applic
 
 | Number of particles  | Minimum framerate | Maximum framerate | Average fps  |
 |----------------------|-------------------|-------------------|--------------|
-|      500             |       77          |        79         |     79       |
-|      1000            |                   |                   |              |
-|      2500            |                   |                   |              |
-|      5000            |       77          |        79         |     79       |
-|      10000           |       77          |        79         |     79       |
+|      1000            |       346         |        352        |     350      |
+|      2500            |       151         |        161        |     155      |
+|      5000            |       80          |        84         |     83       |
+|      10000           |       40          |        44         |     43       |
 
 ### Possible improvments
 **TODO: check grammar**
@@ -213,11 +212,13 @@ This is a list of the meshes I used for this project:
 
 --- image of meshes used ---
 
+--- Table with name number of triangle maybe how much of it in the scene ---
+
 ----
 
 This meshes have a total of ---- triangles.
 
-Even with this meshes the performance have an average of --- fps
+Even with this meshes the performance have an average of 183 fps.   
 
 ### Possible improvments
 One improvement that can be made to each render pass is to use frustum culling.   
@@ -227,3 +228,7 @@ To implement frustum culling, you first need to implement a Bounding Volume Hier
 Both the implementation of the Bounding Volume Hierarchy and the Frustum Culling are not trivial and due to their complexity I consider them beyond the scope of this project and not necessary for the number of objects in the scene to achieve a fixed frame rate.   
 
 # Conclusions
+
+I implemented several graphical features, some easily customisable, such as the addition of particles, with an edge in terms of performance.   
+As discussed in the previous sections, many improvements can be made in terms of performance.    
+Even without these further improvements, the prototype manages to achieve the desired graphical performance with a constant framerate well above the 60 fps threshold.    
