@@ -116,7 +116,6 @@ To simulate graphical effects such as snow, turbo when accelerating, I implement
 The particle system is responsible for creating a large number of small objects (called particles) that together give the feeling of a more complete effect.   
 Each element of the particle system is drawn as a simple shape: a circle or a rectangle.   
 
-**TODO: center this image**
 ![Turbo](./img/turbo.png)   
 Image of a particle emitter mounted on the vehicle to simulate fire as the car accelerates.   
 
