@@ -1,6 +1,11 @@
-% Car race
-% Project for the course Realtime Graphics Programming
-% Davide Cologni
+---
+title: Car race
+subtite: Project for the course Realtime Graphics Programming
+author: Davide Cologni (Mat. 09732A)
+header-includes:
+   - \usepackage{tikz}
+   - \usepackage{circuitikz}
+---
 
 \tableofcontents
 \newpage
@@ -19,17 +24,56 @@ To implement this project I used the following libraries:
 - **Dear IMGui** a Immediate mode GUI library to tweak the parameters of the application at runtime.   
 - **stb image** a header-only library to load images in memory (used for texturing and normal mapping)   
 
+\newpage
+
 # Project description
 ## Vehicle
-**TODO: check grammar**
 I implemented a vehicle using the `btRaycastVehicle` class provided by Bullet.   
-Usually, to model a vehicle in a physics engine, you specify each component of the car (as wheel, suspension, chassis etc...) as a rigid body with physical properties.    
-For example, you can specify a spring for each suspension and an object with a specific restitution for the wheels.   
-This technique has the disadvantages of being complex, very difficult to set all the parameters of each rigid body to work well with the others, and more expensive for the physics engine due to its number of objects and constraints.   
+Normally, to model a vehicle in a physics engine, you specify each component of the car (as wheel, suspension, chassis, etc...) as a rigid body with physical properties.    
+For example, you might specify a spring for each suspension and an object with a specific restitution for the wheels.   
+This technique has the disadvantages of being complex, very difficult to set all the parameters of each rigid body to work well with the others, and more expensive for the physics engine due to the number of objects and constraints.   
+
 A simpler technique used in games is the raycast vehicle.   
-In this case, only the chassis is modelled as a rigid body and the wheels are simulated using a ray that is cast onto the terrain and applies an opposing force to the car.   
-**TODO: Explanatory Tikz Image of RaycastVehicle**
+In this case, only the chassis is modelled as a rigid body, and the wheels are simulated by a ray that is cast onto the terrain, applying an opposing force to the car.   
 This way the physics engine only needs to apply a force where the wheels are attached and resolve the collision with the chassis and the other object.
+
+\begin{figure}[!ht]
+\centering
+\resizebox{.7\textwidth}{!}{%
+\begin{circuitikz}
+\tikzstyle{every node}=[font=\LARGE]
+\draw [short] (6.75,10.25) .. controls (6,10.25) and (6,10.25) .. (5.25,10.25);
+\draw [short] (5.25,10.25) .. controls (5.25,10.75) and (5.25,10.75) .. (5.25,11);
+\draw [short] (5.25,11) .. controls (6.5,11.5) and (6.5,11.5) .. (7.5,12);
+\draw [short] (7.5,12) .. controls (9.25,12) and (9.25,12) .. (11,12);
+\draw [short] (11,12) .. controls (11.5,12) and (11.5,12) .. (12,12);
+\draw [short] (12,12) .. controls (12,11.25) and (12,11.25) .. (12,10.5);
+\draw [short] (12,10.5) .. controls (12,10.5) and (12,10.5) .. (12,10.25);
+\draw [short] (12,10.25) .. controls (11.75,10.25) and (11.75,10.25) .. (11.5,10.25);
+\draw [short] (10.25,10.25) .. controls (9,10.25) and (9,10.25) .. (7.75,10.25);
+\draw [short] (6.75,10.25) .. controls (9.25,10.25) and (9.25,10.25) .. (11.5,10.25);
+\draw [-Stealth, dashed] (6.75,10.25) -- (6.75,9);
+\draw [-Stealth, dashed] (11,10.25) -- (11,8.25);
+\draw [ -Stealth] (6.75,10.5) -- (6.75,13.25);
+\draw [ -Stealth] (11,10.5) -- (11,11.5);
+\draw [](3.25,8.75) to[short] (8,8.75);
+\draw [short] (8,8.75) .. controls (9.25,8.5) and (9.25,8.5) .. (10.25,8);
+\draw [short] (10.25,8) .. controls (12.25,8) and (12.25,8) .. (14.25,8);
+\draw [short] (11.5,12) .. controls (11.75,12.25) and (11.75,12.25) .. (11.75,12.25);
+\draw [short] (11.75,12.5) .. controls (11.75,12.5) and (11.75,12.5) .. (11.75,12.25);
+\draw [short] (11.75,12) .. controls (12,12.25) and (12,12.25) .. (12,12.25);
+\draw [short] (12,12.25) .. controls (12.25,12.25) and (12.25,12.25) .. (12.5,12.25);
+\draw [short] (11.75,12.5) .. controls (12.25,12.5) and (12.25,12.5) .. (12.5,12.5);
+\draw [short] (12.5,12.5) .. controls (12.5,12.5) and (12.5,12.5) .. (12.5,12.25);
+\draw [short] (7.75,12) .. controls (8.25,12.25) and (8.25,12.25) .. (8.75,12.5);
+\draw [short] (8.75,12.5) .. controls (10,12.5) and (10,12.5) .. (11,12.5);
+\draw [short] (11,12.5) .. controls (11.25,12.25) and (11.25,12.25) .. (11.25,12);
+\end{circuitikz}
+}%
+\label{fig:my_label}
+\end{figure}
+In this figure you can see that a greater force is applied at the point where the ray is closer to the terrain, simulating suspension.   
+
 **TODO: Image of vehicle with all his feature like jumping colliding, rebalting ecc**
 
 ## Snow
@@ -50,9 +94,9 @@ On the left, the car in the snow with low suspension. On the right, the suspensi
 
 ### Tesselation
 Immediately after the vertex shader is an optional phase called tesselation, where you can use three stages to divide existing faces into more detailed ones composed of multiple vertices.   
-The first shader is the 'Tesselation Control Shader', which allows you to control how much your geometry is tesselated.   
-After that you have the `Tesselation Primitive Generator', whose purpose is to create the intermediate points.   
-These intermediate points are expressed in uv coordinates, the `hull shader' is what actually translates them into homogeneous coordinates in clip space.   
+The first shader is the `Tesselation Control Shader`, which allows you to control how much your geometry is tesselated.   
+After that you have the `Tesselation Primitive Generator`, whose purpose is to create the intermediate points.   
+These intermediate points are expressed in uv coordinates, the `hull shader` is what actually translates them into homogeneous coordinates in clip space.   
 
 In the hull shader, I sample the texture from the depth buffer, calculate the displacement of the vertex and multiply this value by the height of the snow.
 Then I calculate the new position of the vertex by changing its y-axis to the height.
@@ -67,6 +111,7 @@ To simulate graphical effects such as snow, turbo when accelerating, I implement
 The particle system is responsible for creating a large number of small objects (called particles) that together give the feeling of a more complete effect.   
 Each element of the particle system is drawn as a simple shape: a circle or a rectangle.   
 
+**TODO: center this image**
 ![Turbo](./img/turbo.png)   
 Image of a particle emitter mounted on the vehicle to simulate fire as the car accelerates.   
 
@@ -166,10 +211,14 @@ The light model used by the application is the GGX model implemented during the 
 The model is not modified, but for each object in the scene, custom values are used for the roughness, KD and Fresnel reflectance parameters.   
 For example, for the car I reduced the roughness and increased the Fresnel reflectance to give it a more metallic look.   
 
+\newpage
+
 # Performance
 ## Device 
-----------------------
-*TODO*   
+The application was developed and tested on a laptop with the following specifications:   
+- CPU: Intel Core i7-1260P  2.10GHz
+- RAM: 16 GB
+- GPU: Intel UHD Graphics
 
 ## General performance
 
@@ -187,7 +236,6 @@ All the particle rendered are emitted from the same source.
 |      5000            |       77          |        79         |     79       |
 
 I also tested the performance of the particle in a playgorund: a separate application where I can tweak the parameter of the source and the emitter is the only object rendered.     
-**TODO Link playground image**
 
 | Number of particles  | Minimum framerate | Maximum framerate | Average fps  |
 |----------------------|-------------------|-------------------|--------------|
@@ -197,7 +245,6 @@ I also tested the performance of the particle in a playgorund: a separate applic
 |      10000           |       40          |        44         |     43       |
 
 ### Possible improvments
-**TODO: check grammar**
 At this point, each particle in the buffer is updated on the CPU and rendered separately using istancing.   
 Since the particle doesn't physically interact with the other object, each element can be updated independently.   
 In addition to the lack of parallelization, another disadvantage of updating the particle on the CPU is the memory transfer to the graphics card.   
@@ -210,25 +257,39 @@ A number that is more than enough to implement the effects used in the project.
 The main disadvantage of adding meshes to this project is that they have to be rendered 3 times on each frame: Once for the generic rendering, once for the shadow map calculation and finally to calculate the depth over the snow quad.   
 This is a list of the meshes I used for this project: 
 
---- image of meshes used ---
+![Models](./img/models.png)
+Some of the models used in the application.   
 
---- Table with name number of triangle maybe how much of it in the scene ---
+| Model      | Triangles | Vertices | Total |
+-------------|-----------|-----------|------|
+| Sphere.obj | 760  | 2.280 | 1 |
+| Cylinder.obj | 128  | 384 | 4 |
+| Cube.obj | 12  | 36 | 11 |
+| Stone_bridge.obj | 2.940  | 8.820 | 1 |
+| Ramp_Bridge.obj | 5.891  | 17.673 | 1
+| Car.obj | 612  | 1.836 | 1 |
 
-----
 
-This meshes have a total of ---- triangles.
+The entire scene contains a total of 10,343 triangles.
 
-Even with this meshes the performance have an average of 183 fps.   
+Even with these meshes and 1000 active particles, the application has an average frame rate of 183 fps.   
+Such a large margin over 60 fps leaves the possibility of adding new elements to the scene.     
 
 ### Possible improvments
-One improvement that can be made to each render pass is to use frustum culling.   
+One improvement that can be made to each render pass is the use of frustum culling.   
 Frustum culling allows us to render only those objects that are within the frustum of the camera.   
 This can be very useful in the case of the snow depth buffer: it is only a small rectangle on the plane and we only need to render a limited number of dynamic objects to know how much they are sinking into the snow.   
-To implement frustum culling, you first need to implement a Bounding Volume Hierarchy data structure to quickly determine if an object (or group of objects) is in the frustum or not.   
-Both the implementation of the Bounding Volume Hierarchy and the Frustum Culling are not trivial and due to their complexity I consider them beyond the scope of this project and not necessary for the number of objects in the scene to achieve a fixed frame rate.   
+To implement frustum culling, you first need to implement a Bounding Volume Hierarchy data structure to quickly determine whether an object (or group of objects) is in the frustum or not.   
+Both the implementation of the Bounding Volume Hierarchy and the Frustum Culling are not trivial and due to their complexity I consider them beyond the scope of this project and not necessary for the number of objects in the scene to achieve a fixed frame rate.  
+
+\newpage
 
 # Conclusions
 
-I implemented several graphical features, some easily customisable, such as the addition of particles, with an edge in terms of performance.   
-As discussed in the previous sections, many improvements can be made in terms of performance.    
-Even without these further improvements, the prototype manages to achieve the desired graphical performance with a constant framerate well above the 60 fps threshold.    
+In this project I used bullet to implement a vehicle that could interact with each element of the scene.   
+But the main part of the application was to implement a number of techniques to improve the appearance of the application.      
+One of the aims of this project is to make the different techniques easily customisable by using parameters that can be passed to the shaders.   
+By combining some of these techniques, such as normal maps, shadows, textures, etc., a good degree of realism can be achieved.
+Others can be used to add effects that are eye-catching to the user, such as snow and particles.   
+In terms of performance, as already mentioned, the techniques used to render the scene are more than adequate for the objectives proposed.   
+However, if the scene grows significantly, it is necessary to apply the optimisations discussed in the previous chapter.   
