@@ -74,7 +74,12 @@ This way the physics engine only needs to apply a force where the wheels are att
 \end{figure}
 In this figure you can see that a greater force is applied at the point where the ray is closer to the terrain, simulating suspension.   
 
-**TODO: Image of vehicle with all his feature like jumping colliding, rebalting ecc**
+\newpage
+
+![Physics](./img/physics.png)
+![Physics](./img/physics2.png)
+In order: The car colliding with some dynamic obstacles. The vehicle overturned. The vehicle jumping on a ramp.   
+
 
 ## Snow
 Among the graphical effects I decided to implement, I also chose to simulate snow, which is sensitive to the depth of the object stepping on it.
