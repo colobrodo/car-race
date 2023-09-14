@@ -1,6 +1,6 @@
 ---
-title: Car race
-subtite: Project for the course Realtime Graphics Programming
+title: Car race - Project for the course Realtime Graphics Programming
+subtite: 
 author: Davide Cologni (Mat. 09732A)
 header-includes:
    - \usepackage{tikz}
@@ -13,7 +13,8 @@ header-includes:
 # Introduction
 The aim of this project is to implement an interactive car game with several graphical features.   
 The application is developed in C++ because this language provides manual memory control.   
-I used the Microsoft Visual Studio compiler to develop the project on Windows 11.
+I used the Microsoft Visual Studio compiler to develop the project on Windows 11.   
+The source for the project is available at [github.com/colobrodo/car-race](https://github.com/colobrodo/car-race)
 
 ## Used Libraries
 To implement this project I used the following libraries:   
@@ -82,7 +83,7 @@ In order: The car colliding with some dynamic obstacles. The vehicle overturned.
 
 
 ## Snow
-Among the graphical effects I decided to implement, I also chose to simulate snow, which is sensitive to the depth of the object stepping on it.
+Among the graphical effects I decided to implement, I chose to simulate snow, which is sensitive to the depth of the object stepping on it.
 
 The snow effect is implemented in two steps:   
 First, we create a texture with the height of the snow (heightmap).   
@@ -93,8 +94,62 @@ One is used to remember the height of the snow in previous frames and the other 
 To render the second texture and know how much the object is sinking into the snow, I render the whole scene in a depth buffer, placing the camera on the ground looking up with an orthogonal projection.
 The two textures are then combined in the shader using a min pixel per pixel operation.   
 
+\begin{figure}[!ht]
+\centering
+\resizebox{.7\textwidth}{!}{%
+\begin{circuitikz}
+\tikzstyle{every node}=[font=\large]
+\draw [short] (6.75,10.25) .. controls (6,10.25) and (6,10.25) .. (5.25,10.25);
+\draw [short] (5.25,10.25) .. controls (5.25,10.75) and (5.25,10.75) .. (5.25,11);
+\draw [short] (5.25,11) .. controls (6.5,11.5) and (6.5,11.5) .. (7.5,12);
+\draw [short] (7.5,12) .. controls (9.25,12) and (9.25,12) .. (11,12);
+\draw [short] (11,12) .. controls (11.5,12) and (11.5,12) .. (12,12);
+\draw [short] (12,12) .. controls (12,11.25) and (12,11.25) .. (12,10.5);
+\draw [short] (12,10.5) .. controls (12,10.5) and (12,10.5) .. (12,10.25);
+\draw [short] (12,10.25) .. controls (11.75,10.25) and (11.75,10.25) .. (11.5,10.25);
+\draw [short] (10.25,10.25) .. controls (9,10.25) and (9,10.25) .. (7.75,10.25);
+\draw [short] (6.75,10.25) .. controls (9.25,10.25) and (9.25,10.25) .. (11.5,10.25);
+\draw [short] (11.5,12) .. controls (11.75,12.25) and (11.75,12.25) .. (11.75,12.25);
+\draw [short] (11.75,12.5) .. controls (11.75,12.5) and (11.75,12.5) .. (11.75,12.25);
+\draw [short] (11.75,12) .. controls (12,12.25) and (12,12.25) .. (12,12.25);
+\draw [short] (12,12.25) .. controls (12.25,12.25) and (12.25,12.25) .. (12.5,12.25);
+\draw [short] (11.75,12.5) .. controls (12.25,12.5) and (12.25,12.5) .. (12.5,12.5);
+\draw [short] (12.5,12.5) .. controls (12.5,12.5) and (12.5,12.5) .. (12.5,12.25);
+\draw [short] (7.75,12) .. controls (8.25,12.25) and (8.25,12.25) .. (8.75,12.5);
+\draw [short] (8.75,12.5) .. controls (10,12.5) and (10,12.5) .. (11,12.5);
+\draw [short] (11,12.5) .. controls (11.25,12.25) and (11.25,12.25) .. (11.25,12);
+\draw (6.5,10.5) circle (0.5cm);
+\draw (10.5,10.25) circle (0.5cm);
+\draw (8,6.25) rectangle (8.75,5.25);
+\draw [short] (8.25,6.25) .. controls (8.25,6.5) and (8.25,6.5) .. (8,6.5);
+\draw [short] (8.5,6.25) .. controls (8.75,6.5) and (8.75,6.5) .. (8.75,6.5);
+\draw [short] (8.75,6.5) .. controls (8.5,6.5) and (8.5,6.5) .. (8,6.5);
+\draw [short] (0.5,9.5) .. controls (8.75,9.5) and (8.75,9.5) .. (17,9.5);
+\draw [-Stealth, dashed] (5.75,9.5) -- (5.75,10.25);
+\draw [-Stealth, dashed] (6.5,9.5) -- (6.5,10);
+\draw [-Stealth, dashed] (7.5,9.5) -- (7.5,10.25);
+\draw [-Stealth, dashed] (8.5,9.5) -- (8.5,10.25);
+\draw [-Stealth, dashed] (9.25,9.5) -- (9.25,10.25);
+\draw [-Stealth, dashed] (10.5,9.5) -- (10.5,9.75);
+\draw [-Stealth, dashed] (11.25,9.5) -- (11.25,10.25);
+\draw [-Stealth, dashed] (12.25,9.5) -- (12.25,10.75);
+\draw [-Stealth, dashed] (13.25,9.5) -- (13.25,10.75);
+\draw [-Stealth, dashed] (4.5,9.5) -- (4.5,10.75);
+\draw [-Stealth, dashed] (3.75,9.5) -- (3.75,10.75);
+\draw [dashed] (8.25,6.5) -- (3,9.5);
+\draw [dashed] (8.5,6.5) -- (14.5,9.5);
+\draw [dashed] (3,10.75) -- (14.5,10.75);
+\draw [dashed] (14.5,10.75) -- (14.5,9.5);
+\draw [dashed] (3,10.75) -- (3,9.5);
+\end{circuitikz}
+}%
+\label{fig:my_label}
+\end{figure}
+A sketch on how the camera is placed, to render the scene into the depth buffer for the snow.   
+
+
 ![snow Difference](./img/snow-difference.png)
-On the left, the car in the snow with low suspension. On the right, the suspension has been raised and the shape of the wheels is clearly distinguishable from the chassis.   
+On the left, the car in the snow with low suspension. On the right, the suspension has been raised and the shape of the wheels is clearly distinguishable from the chassis in the footprint.   
 
 
 ### Tesselation
@@ -128,7 +183,6 @@ You can decide to spawn the elements on a point or on an area.
 To customise the appearance of the effect, it is possible to set a list of random parameters such as the particle's speed, direction, lifetime, colour, alpha parameter and size.   
 The particle is not created with a user defined value, what can be controlled is a range (minimum and maximum) within which the parameter can be randomly sampled.   
 
-**TODO: video**   
 ![playground](./img/playground.png)
 The picture shows a playground for testing the particles.   
 On the left a Dear ImGUI dialogue to manage all the random parameters of the particle system.    
@@ -259,10 +313,11 @@ A number that is more than enough to implement the effects used in the project.
 ## Performance related to Meshes
 
 The main disadvantage of adding meshes to this project is that they have to be rendered 3 times on each frame: Once for the generic rendering, once for the shadow map calculation and finally to calculate the depth over the snow quad.   
-This is a list of the meshes I used for this project: 
 
 ![Models](./img/models.png)
 Some of the models used in the application.   
+
+This is a list of the meshes I used for this project: 
 
 | Model      | Triangles | Vertices | Total |
 -------------|-----------|-----------|------|
