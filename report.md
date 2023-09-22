@@ -14,7 +14,7 @@ header-includes:
 The aim of this project is to implement an interactive car game with several graphical features.   
 The application is developed in C++ because this language provides manual memory control.   
 I used the Microsoft Visual Studio compiler to develop the project on Windows 11.   
-The source for the project is available at [github.com/colobrodo/car-race](https://github.com/colobrodo/car-race)
+The source of the project is available at [`github.com/colobrodo/car-race`](https://github.com/colobrodo/car-race)
 
 ## Used Libraries
 To implement this project I used the following libraries:   
@@ -187,6 +187,7 @@ The particle is not created with a user defined value, what can be controlled is
 The picture shows a playground for testing the particles.   
 On the left a Dear ImGUI dialogue to manage all the random parameters of the particle system.    
 
+### Instancing
 Due to the large number of objects required to achieve a believable effect, I rendered the particles using the instancing technique.   
 Instancing allows you to render multiple objects with the same set of vertices, with only one render call to the GPU.   
 This way you can avoid communicating the mesh data for each object you render, saturating the CPU to GPU bus.   
@@ -247,7 +248,7 @@ The list of texture used in the project with the respective normal maps (describ
 In addition to the image textures, I also implemented a technique called Normal Mapping.   
 This technique aims to increase the realism of the scene by adding more small light details that change the normal of the surface.   
 The normal of the surface is replaced by a normal stored in a texture.   
-The normal map is a 3-channel RGB image that is remapped from the [0, 255] range to the [-1, 1] range after sampling.    
+The normal map is a 3-channel RGB image that is remapped from the [0, 1] range to the [-1, 1] range after sampling.    
 The new normal is then transformed into tangent space and finally used in the lighting model instead of the normal stored in the vertex.   
 I don't use a normal map for every object in the scene, for most meshes I use the values stored in the vertex data.   
 To choose whether to rely on a normal map texture or use the stored normal, I used a GLSL subroutine.   
@@ -340,8 +341,6 @@ Frustum culling allows us to render only those objects that are within the frust
 This can be very useful in the case of the snow depth buffer: it is only a small rectangle on the plane and we only need to render a limited number of dynamic objects to know how much they are sinking into the snow.   
 To implement frustum culling, you first need to implement a Bounding Volume Hierarchy data structure to quickly determine whether an object (or group of objects) is in the frustum or not.   
 Both the implementation of the Bounding Volume Hierarchy and the Frustum Culling are not trivial and due to their complexity I consider them beyond the scope of this project and not necessary for the number of objects in the scene to achieve a fixed frame rate.  
-
-\newpage
 
 # Conclusions
 
