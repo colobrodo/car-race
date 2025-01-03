@@ -5,15 +5,19 @@ I think despite that you can still have fun trying it out :wink:
 
 ![video](./img/video.mp4)
 
+
 Among the things I implemented there are:
 - **Particle System**: A Particle System with istanced rendering.   
 You can try it tweeking all the parameters for the emitter compiling the file `src/particle_playground`
-- **Shadow Map**: Some shadows using [Shadow mapping technique](https://en.wikipedia.org/wiki/Shadow_mapping) and Poisson sampling PCF for softer effect
+![playground](./img/playground.png)
+![falling-snow](./img/falling-snow.png)
+- **Shadow Map**: Some shadows using [Shadow mapping technique](https://en.wikipedia.org/wiki/Shadow_mapping) and Poisson sampling PCF for softer effect ![shadow](./img/shadow.png)
 - **Sky box**: An image to simulate the environment using a cubemap
 - A **Physichs-based car** that can interact with the environment 
-- **A snow effect**
+- **A snow effect** ![snow](./img/snow-difference.png)
 - **Textures**
 - **Normal Map**
+
 
 ## Compiling
 I have developed and tested this project on windows but it should be compatible also with other platform.  
